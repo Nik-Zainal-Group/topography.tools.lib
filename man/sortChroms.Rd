@@ -15,5 +15,5 @@ sortChroms(chroms, decreasing = FALSE)
 ordered chromosome names vector
 }
 \description{
-Order a list of chromosome names.
+Sort a list of chromosome names.
 }
