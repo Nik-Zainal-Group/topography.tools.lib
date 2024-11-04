@@ -36,7 +36,7 @@ sortChroms <- function(chroms,
 #' @return data frame of ordered positions
 #' @export
 sortPositions <- function(positions){
-  if(!all(colnames(positions) %in% c("chr","position"))){
+  if(!all(c("chr","position") %in% colnames(positions))){
     misscol <- setdiff(c("chr","position"),colnames(positions))
     message("[error sortPositions] missing columns: ",paste(misscol,collapse = ", "))
     return(NULL)
@@ -67,7 +67,7 @@ sortPositions <- function(positions){
 #' @return data frame of ordered bed regions
 #' @export
 sortBed <- function(bed_table){
-  if(!all(colnames(bed_table) %in% c("chr","start","end"))){
+  if(!all(c("chr","start","end") %in% colnames(bed_table))){
     misscol <- setdiff(c("chr","start","end"),colnames(bed_table))
     message("[error sortBed] missing columns: ",paste(misscol,collapse = ", "))
     return(NULL)
@@ -123,3 +123,233 @@ checkBedRegionsOverlap <- function(bed_table){
   }
   return(overlapChroms)
 }
+
+
+
+#' Break down overlapping bed regions
+#'
+#' If a bed_table contains overlapping bed regions, split the overlapping regions
+#' and return a set of non-overlapping bed regions. An id column in the input
+#' bed_table data frame is required to keep track of which returned region is derived
+#' from which input region. 
+#' 
+#' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
+#' @param aggregateSignalMode can be either: mean or sum, relevant only if the signal column is present
+#' @param aggregateTextColumns is a list of columns of bed_table that should be aggregated
+#' @return updated bed_table with non-overlapping regions
+#' @export
+breakDownOverlappingBedRegions <- function(bed_table,
+                                           aggregateSignalMode="mean",
+                                           aggregateTextColumns=NULL){
+  requiredcolumns <- c("id","chr","start","end")
+  acceptedSignalModes <- c("sum","mean")
+  
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error breakDownOverlappingBedRegions] missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  # check aggregateSignalMode
+  if(!aggregateSignalMode %in% acceptedSignalModes){
+    message("[error breakDownOverlappingBedRegions] invalid aggregateSignalMode, please use on of: ",paste(acceptedSignalModes,collapse = ", "))
+    return(NULL)
+  }
+  # check that id is unique
+  if(length(unique(bed_table$id)) < nrow(bed_table)){
+    message("[error breakDownOverlappingBedRegions] id column in bed_table does not have unique values.")
+    return(NULL)
+  }
+  # check that the requested text columns exist
+  if(!is.null(aggregateTextColumns)){
+    if(!all(aggregateTextColumns %in% colnames(bed_table))){
+      missingcolumns <- setdiff(aggregateTextColumns,colnames(bed_table))
+      message("[warning breakDownOverlappingBedRegions] ignoring requested aggregate text columns because they are missing: ",paste(missingcolumns,collapse = ", "))
+      aggregateTextColumns <- setdiff(aggregateTextColumns,missingcolumns)
+      if(length(aggregateTextColumns)==0) aggregateTextColumns <- NULL
+    }
+  }
+  
+  # make sure id is a character
+  bed_table$id <- as.character(bed_table$id)
+  # make sure it is sorted
+  bed_table <- sortBed(bed_table)
+  
+  # check if we have the signal column
+  signalColumn <- "signal" %in% colnames(bed_table)
+  returncolums <- requiredcolumns
+  if(signalColumn) returncolums <- c(returncolums,"signal")
+  
+  # check which chromosomes have overlap if any
+  overlapChroms <- checkBedRegionsOverlap(bed_table)
+  if(is.null(overlapChroms)){
+    message("[info breakDownOverlappingBedRegions] no overlapping regions found in bed_table.")
+    return(bed_table[,union(returncolums,aggregateTextColumns),drop=F])
+  }else{
+    # need to break things down one chromosome at a time, though only in the chromosomes where there is overlap
+    finalTable <- NULL
+    chroms <- unique(bed_table$chr)
+    for(chrom in chroms){
+      # chrom <- chroms[1]
+      tmpTable <- bed_table[bed_table$chr==chrom,,drop=F]
+      if(!chrom %in% overlapChroms){
+        # there is no overlap in this chromosome
+        message("[info breakDownOverlappingBedRegions] no overlapping regions found in chromosome ",chrom)
+        rownames(tmpTable) <- paste(tmpTable$chr,sprintf("%d",tmpTable$start),sprintf("%d",tmpTable$end),sep = "_")
+        finalTable <- rbind(finalTable,tmpTable[,returncolums,drop=F])
+      }else{
+        message("[info breakDownOverlappingBedRegions] breaking overlapping regions in chromosome ",chrom)
+        # there are overlapping regions in this chromosome, so we need to break things down
+        allpositions <- unique(c(tmpTable$start,tmpTable$end))
+        allpositions <- allpositions[order(allpositions)]
+        # allpositionsTable <- data.frame(position = allpositions,
+        #                                 stringsAsFactors = F)
+        # allpositionsTable$isstart <- allpositionsTable$position %in% tmpTable$start
+        # allpositionsTable$isend <- allpositionsTable$position %in% tmpTable$end
+        isstart <- allpositions %in% tmpTable$start
+        isend <- allpositions %in% tmpTable$end
+        
+        newTable <- data.frame(chr=rep(chrom,length(allpositions)-1),
+                               start=allpositions[1:(length(allpositions)-1)],
+                               end=allpositions[2:length(allpositions)],
+                               stringsAsFactors = F)
+        # when starting from an end position, we need to add 1
+        newTable$start[isend[1:(length(allpositions)-1)]] <- newTable$start[isend[1:(length(allpositions)-1)]] + 1
+        # when ending in a start position, we need to subtract 1
+        newTable$end[isstart[2:length(allpositions)]] <- newTable$end[isstart[2:length(allpositions)]] - 1
+        # need to remove cases in which starts becomes > than end
+        newTable <- newTable[newTable$start<=newTable$end,,drop=F]
+        
+        # if there are cases where start and end happen at the same position,
+        # they need to be added as additional regions
+        bothstartandend <- allpositions[isstart & isend]
+        if(length(bothstartandend)>0){
+          newTable <- rbind(newTable,data.frame(chr=rep(chrom,length(bothstartandend)),
+                                                start=bothstartandend,
+                                                end=bothstartandend,
+                                                stringsAsFactors = F))
+        }
+        # sort? perhaps there is no need
+        newTable <- sortBed(newTable)
+        # now we need to find all the original regions that overlap each new region
+        # discard new segments with no overlap
+        # aggregate signal if one or more segments overlap and include their ids
+        # brute force approach will check each original region against all new regions
+        # I can speed up if I exclude new regions from the check once they end before 
+        # the start of an old region, though I need a quick access using ids as row names
+        # 
+        rownames(newTable) <- paste(newTable$chr,sprintf("%d",newTable$start),sprintf("%d",newTable$end),sep = "_")
+        copyOfNewTable <- newTable
+        newTable$hasOverlap <- FALSE
+        newTable$signalsum <- 0
+        newTable$noverlaps <- 0
+        newTable$id <- NA
+        
+        # find the regions that can be matched directly to non overlapping regions
+        tmpTable$bedid <- paste(tmpTable$chr,sprintf("%d",tmpTable$start),sprintf("%d",tmpTable$end),sep = "_")
+        tmpTable$matchedid <- tmpTable$bedid %in% rownames(newTable)
+        countMatchedids <- table(tmpTable$bedid[tmpTable$matchedid])
+        uniquelyMatchedIds <- names(countMatchedids)[countMatchedids==1]
+        if(length(uniquelyMatchedIds)>0){
+          message("[info breakDownOverlappingBedRegions] found ", length(uniquelyMatchedIds)," bed segments (",
+                  sprintf("%.2f",length(uniquelyMatchedIds)/nrow(tmpTable)*100),"%) that do not need to be broken down, they will be processed quickly.")
+          # we have some uniquely matched ids that we can deal with in one go
+          uniqueIDtmpTable <- tmpTable[tmpTable$bedid %in% uniquelyMatchedIds,]
+          rownames(uniqueIDtmpTable) <- uniqueIDtmpTable$bedid
+          newTable[uniquelyMatchedIds,"hasOverlap"] <- TRUE
+          newTable[uniquelyMatchedIds,"noverlaps"] <- 1
+          newTable[uniquelyMatchedIds,"id"] <- uniqueIDtmpTable[uniquelyMatchedIds,"id"]
+          if(signalColumn) newTable[uniquelyMatchedIds,"signalsum"] <- uniqueIDtmpTable[uniquelyMatchedIds,"signal"]
+          # update tmpTable
+          tmpTable <- tmpTable[!tmpTable$bedid %in% uniquelyMatchedIds,,drop=F]
+          if(nrow(tmpTable)>0){
+            # make sure it is sorted
+            tmpTable <- sortBed(tmpTable)
+          }
+        }
+        
+        if(nrow(tmpTable)>0){
+          percmilestone <- 10
+          for (i in 1:nrow(tmpTable)){
+            # i <- 1
+            if(i==nrow(tmpTable)){
+              message("[info breakDownOverlappingBedRegions] chromosome ",chrom," progress: 100%")
+            }else if(i/nrow(tmpTable)*100>=percmilestone) {
+              message("[info breakDownOverlappingBedRegions] chromosome ",chrom," progress: ",percmilestone,"%")
+              percmilestone <- percmilestone+10
+            }
+            if(tmpTable[i,"matchedid"]){
+              # non need to look for overlapping new regions, we have one matching exactly
+              ids <- tmpTable[i,"bedid"]
+              newTable[ids,"hasOverlap"] <- TRUE
+              newTable[ids,"noverlaps"] <- newTable[ids,"noverlaps"] + 1
+              if(is.na(newTable[ids,"id"])){
+                newTable[ids,"id"] <- tmpTable[i,"id"]
+              }else{
+                newTable[ids,"id"] <- paste(c(newTable[ids,"id"],tmpTable[i,"id"]),collapse = ";")
+              }
+              if(signalColumn) {
+                newTable[ids,"signalsum"] <- newTable[ids,"signalsum"] + tmpTable[i,"signal"]
+              }
+            }else{
+              # need to check for overlapping new regions
+              # discard new regions that are lower than start
+              copyOfNewTable <- copyOfNewTable[(copyOfNewTable$end >= tmpTable$start[i]),,drop=F]
+              overlap <- !(copyOfNewTable$start > tmpTable$end[i] | copyOfNewTable$end < tmpTable$start[i])
+              overlapTable <- copyOfNewTable[overlap,,drop=F]
+              if(nrow(overlapTable)>0){
+                ids <- paste(overlapTable$chr,sprintf("%d",overlapTable$start),sprintf("%d",overlapTable$end),sep = "_")
+                newTable[ids,"hasOverlap"] <- TRUE
+                newTable[ids,"noverlaps"] <- newTable[ids,"noverlaps"] + 1
+                for(idsi in ids){
+                  if(is.na(newTable[idsi,"id"])){
+                    newTable[idsi,"id"] <- tmpTable[i,"id"]
+                  }else{
+                    newTable[idsi,"id"] <- paste(c(newTable[idsi,"id"],tmpTable[i,"id"]),collapse = ";")
+                  }
+                }
+                if(signalColumn) {
+                  newTable[ids,"signalsum"] <- newTable[ids,"signalsum"] + tmpTable[i,"signal"]
+                }
+              }
+            }
+            
+          }
+        }
+        
+        # now remove lines if noverlaps is 0
+        newTable <- newTable[newTable$hasOverlap,,drop=F]
+        if(signalColumn){
+          if(aggregateSignalMode=="sum"){
+            newTable$signal <- newTable$signalsum
+          }else if(aggregateSignalMode=="mean"){
+            newTable$signal <- newTable$signalsum/newTable$noverlaps
+          }
+        }
+        finalTable <- rbind(finalTable,newTable[,returncolums,drop=F])
+        
+      }
+    }
+    
+    if(!is.null(aggregateTextColumns)){
+      message("[info breakDownOverlappingBedRegions] aggregating requested text columns...")
+      # add the aggregated text columns requested
+      aggregatedTextColumns <- sapply(finalTable$id,function(x){
+        ids <- strsplit(x,split = ";")[[1]]
+        tmpBed <- bed_table[bed_table$id %in% ids,aggregateTextColumns,drop=F]
+        apply(tmpBed, 2, function(x) paste(x,collapse = ";"))
+      })
+      if(length(aggregateTextColumns)>1) {
+        aggregatedTextColumns <- t(aggregatedTextColumns)
+      }else{
+        aggregatedTextColumns <- data.frame(aggregatedTextColumns,
+                                            stringsAsFactors = F)
+        colnames(aggregatedTextColumns) <- aggregateTextColumns
+      }
+      finalTable <- cbind(finalTable,aggregatedTextColumns)
+    }
+    
+    message("[info breakDownOverlappingBedRegions] done.")
+    return(finalTable)
+  }
+}
+

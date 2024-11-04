@@ -46,3 +46,27 @@ test_that("test checkBedRegionsOverlap", {
   expect_equal(bed_table_res2,NULL)
   
 })
+
+test_that("test breakDownOverlappingBedRegions", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(5000,10000),
+                          end=c(12000,15000),
+                          signal=c(1,1),
+                          text=c(10,20),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  bed_table_expected <- data.frame(row.names = c("1_5000_9999","1_10000_12000","1_12001_15000"),
+                                   id=c("1","1;2","2"),
+                                   chr=c("1","1","1"),
+                                   start=c(5000,10000,12001),
+                                   end=c(9999,12000,15000),
+                                   signal=c(1,1,1),
+                                   text=c("10","10;20","20"),
+                                   stringsAsFactors = F)
+  
+  bed_table_res <- breakDownOverlappingBedRegions(bed_table = bed_table,aggregateTextColumns = "text")
+  
+  expect_equal(bed_table_res,bed_table_expected)
+  
+})
