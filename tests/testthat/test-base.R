@@ -150,3 +150,31 @@ test_that("test mergeAdjacentBedRegions", {
   expect_equal(bed_table_merged,expect_merge)
   
 })
+
+test_that("test getChromosomesBedTable", {
+  
+  chrTable <- getChromosomesBedTable(genomev = "hg19")
+  
+  expect_equal(nrow(chrTable),24)
+  
+})
+
+test_that("test trimNfromBed", {
+  
+  bed_table <- data.frame(chr=c(1),
+                          start=c(1),
+                          end=c(300000),
+                          stringsAsFactors = F)
+  expected_trimmed <- data.frame(chr=c(1,1),
+                                 start=c(10001,227418),
+                                 end=c(177417,267719),
+                                 stringsAsFactors = F)
+  
+  bed_table_trimmed <- trimNfromBed(bed_table = bed_table,
+                                    genomev = "hg19")
+  
+
+  
+  expect_equal(bed_table_trimmed,expected_trimmed)
+  
+})

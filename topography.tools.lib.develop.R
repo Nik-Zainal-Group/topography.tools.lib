@@ -5,6 +5,9 @@
 #
 # devtools::create("topography.tools.lib")
 
+# usethis::use_package("BSgenome.Hsapiens.UCSC.hg38")
+# usethis::use_package("BSgenome.Hsapiens.1000genomes.hs37d5")
+
 devtools::document()
 devtools::install()
 # devtools::install(dependencies = FALSE)

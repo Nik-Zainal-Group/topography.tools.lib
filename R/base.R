@@ -679,3 +679,112 @@ mergeAdjacentBedRegions <- function(bed_table){
   }
   return(newTable)
 }
+
+#' Get chromosomes bed table
+#'
+#' Return a bed table with the list of chromosomes.
+#' 
+#' 
+#' @param genomev hg19 or hg38
+#' @return chromosomes bed table
+#' @export
+getChromosomesBedTable <- function(genomev){
+  # select reference genome
+  if(genomev=="hg19"){
+    expected_chroms <- paste0(c(seq(1:22),"X","Y"))
+    genomeSeq <- BSgenome.Hsapiens.1000genomes.hs37d5::BSgenome.Hsapiens.1000genomes.hs37d5
+  }else if(genomev=="hg38"){
+    expected_chroms <- paste0("chr",c(seq(1:22),"X","Y"))
+    genomeSeq <- BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38
+  }
+  
+  # get chrom lengths info
+  chromsTable <- as.data.frame(GenomeInfoDb::seqinfo(genomeSeq))
+  chromsTable <- chromsTable[expected_chroms,]
+  
+  # set up table
+  regions_table <- data.frame(chr=rownames(chromsTable),
+                              start=rep(1,nrow(chromsTable)),
+                              end=chromsTable$seqlengths,
+                              stringsAsFactors = F)
+  return(regions_table)
+}
+
+
+#' Remove N from bed table
+#'
+#' Given a table of bed regions and a reference genome, trim and split the bed
+#' bed regions to remove reference genome N positions.
+#' 
+#' 
+#' @param bed_table data frame with required columns: chr, start, end
+#' @param genomev hg19 or hg38
+#' @return updated bed_table
+#' @export
+trimNfromBed <- function(bed_table,
+                         genomev,
+                         verbose=FALSE){
+  # check required columns
+  requiredcolumns <- c("chr","start","end")
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error trimNfromBed] missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # check for chr prefix
+  chrPrefix <- FALSE
+  if(startsWith(x = as.character(bed_table$chr[1]),prefix = "chr")) chrPrefix <- TRUE
+  
+  # select reference genome
+  if(genomev=="hg19"){
+    expected_chroms <- paste0(c(seq(1:22),"X","Y"))
+    genomeSeq <- BSgenome.Hsapiens.1000genomes.hs37d5::BSgenome.Hsapiens.1000genomes.hs37d5
+    if(chrPrefix) bed_table$chr <- substr(bed_table$chr,4,5)
+  }else if(genomev=="hg38"){
+    expected_chroms <- paste0("chr",c(seq(1:22),"X","Y"))
+    genomeSeq <- BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38
+    if(!chrPrefix) bed_table$chr <- paste0("chr",bed_table)
+  }
+  
+  # great, now let's check for N and remove them
+  regions_table_final <- NULL
+  for (i in 1:nrow(bed_table)) {
+    # i <- 1
+    if((i %% 50 == 0) & verbose){
+      message("[info trimNfromBed] processing row ",i," of ",nrow(bed_table))
+    }
+    currentSeq <- as.character(BSgenome::getSeq(genomeSeq, as.character(bed_table$chr[i]), start=bed_table$start[i], bed_table$end[i]))
+    
+    # does it contain N?
+    hasN <- grepl(pattern = "N",x = currentSeq,fixed = TRUE)
+    if(!hasN){
+      # just add row as it is
+      regions_table_final <- rbind(regions_table_final,bed_table[i,,drop=F])
+    }else{
+      if(verbose) message("[info trimNfromBed] Found N in row ",i,": splitting")
+      # I need all the positions where N is, then use distance from next to find the regions
+      # whenever I have two non-consecutive N then I have a region
+      isN <- strsplit(currentSeq,split = "")[[1]]=="N"
+      if(!all(isN)){
+        positions <- bed_table$start[i]:bed_table$end[i]
+        positions <- positions[isN]
+        if(positions[1]!=bed_table$start[i]) positions <- c(bed_table$start[i]-1,positions)
+        if(positions[length(positions)]!=bed_table$end[i]) positions <- c(positions,bed_table$end[i]+1)
+        pdist <- positions[2:length(positions)]-positions[1:(length(positions)-1)]
+        segmentsPos <- which(pdist>1)
+        newrows <- data.frame(chr=rep(bed_table$chr[i],length(segmentsPos)),
+                              start=positions[segmentsPos]+1,
+                              end=positions[segmentsPos+1]-1,
+                              stringsAsFactors = F)
+        if(verbose) message("[info trimNfromBed] -> row ",i," split into ",nrow(newrows))
+        regions_table_final <- rbind(regions_table_final,newrows)
+      }else{
+        if(verbose) message("[info trimNfromBed] -> row ",i," is 100% N")
+      }
+    }
+  }
+  
+  return(regions_table_final)
+}
+
