@@ -111,3 +111,20 @@ test_that("test plotBrokenDownBedRegions", {
   unlink(filename)
   
 })
+
+test_that("test getIMD", {
+  
+  positions <- data.frame(chr=c("2","2","1","1","1"),
+                          position=c(2,1,2,1,5),
+                          stringsAsFactors = F)
+  expect_IMD <- cbind(positions[c(4,3,5,2,1),],
+                      data.frame(leftIMD=c(NA,1,3,NA,1),
+                                 rightIMD=c(1,3,NA,1,NA),
+                                 aveIMD=c(1,2,3,1,1),
+                                 stringsAsFactors = F))
+  
+  positions_IMD <- getIMD(positions)
+  
+  expect_equal(positions_IMD,expect_IMD)
+  
+})

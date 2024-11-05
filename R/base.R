@@ -535,4 +535,45 @@ plotBrokenDownBedRegions <- function(bed_table,
   return(returnObj)
 }
 
-
+#' Compute inter-mutational distance of a set of positions
+#'
+#' This function returns both the left and right IMD of each given position
+#' as well as the average IMD.
+#' 
+#' @param positions data frame with required columns: chr and position 
+#' @return left, right and average inter-mutational distance
+#' @export
+getIMD <- function(positions){
+  # some checks
+  requiredcolumns_pos <- c("chr","position")
+  if(!all(requiredcolumns_pos %in% colnames(positions))){
+    missingcolumns <- setdiff(requiredcolumns_pos,colnames(positions))
+    message("[error getIMD] missing required columns in positions table: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # compute the IMD, for each chromosome separately, sort first
+  positions <- sortPositions(positions = positions)
+  chroms <- unique(positions$chr)
+  new_positions <- NULL
+  for(chrom in chroms){
+    # chrom <- chroms[1]
+    chr_positions <- positions[positions$chr==chrom,,drop=F]
+    if(nrow(chr_positions)>0){
+      # get ready
+      chr_positions$leftIMD <- NA
+      chr_positions$rightIMD <- NA
+      chr_positions$aveIMD <- NA
+      # there is at least one row, so if it is only one row IMD=NA
+      # and just add to final table, otherwise we calculate the IMD and fill the table
+      if(nrow(chr_positions)>1){
+        IMD <- chr_positions$position[2:nrow(chr_positions)] - chr_positions$position[1:(nrow(chr_positions)-1)]
+        chr_positions[2:nrow(chr_positions),"leftIMD"] <- IMD
+        chr_positions[1:(nrow(chr_positions)-1),"rightIMD"] <- IMD
+        chr_positions[,"aveIMD"] <- apply(chr_positions[,c("leftIMD","rightIMD")],1,mean,na.rm=T)
+      }
+      new_positions <- rbind(new_positions,chr_positions)
+    }
+  }
+  return(new_positions)
+}
