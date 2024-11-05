@@ -3,6 +3,7 @@
 export(assignBedRegionsToNonOverlappingSets)
 export(breakDownOverlappingBedRegions)
 export(checkBedRegionsOverlap)
+export(plotBrokenDownBedRegions)
 export(sortBed)
 export(sortChroms)
 export(sortPositions)

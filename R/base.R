@@ -375,7 +375,7 @@ assignBedRegionsToNonOverlappingSets <- function(bed_table,
                                                  brokenDown_bed_table=NULL){
   if(is.null(brokenDown_bed_table)){
     message("[info assignBedRegionsToNonOverlappingSets] running breakDownOverlappingBedRegions...")
-    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table)
+    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table = bed_table)
   }
   
   levelAssignmentList <- list()
@@ -418,3 +418,121 @@ assignBedRegionsToNonOverlappingSets <- function(bed_table,
   }
   return(levelAssignmentList)
 }
+
+
+#' Plot broken down bed regions
+#'
+#' Given a table with bed regions, plot the bed regions within a given genomic
+#' location (chrom:pstart-pend) so that overlapping regions are shown on separate
+#' lines. This plot function is useful to visualise overlapping bed regions.
+#' This function calls breakDownOverlappingBedRegions (if brokenDown_bed_table is NULL)
+#' and assignBedRegionsToNonOverlappingSets, and the results from these function
+#' calls are returned in a return object list.
+#' 
+#' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
+#' @param brokenDown_bed_table This should be the result of breakDownOverlappingBedRegions(bed_table,...),
+#' in case this has already been computed. If left NULL (the default), breakDownOverlappingBedRegions(bed_table)
+#' is called by this function with default parameters
+#' @param filename optional file name to plot to file, use .pdf extension
+#' @param chrom chromosome location to plot
+#' @param pstart genomic start location to plot
+#' @param pend genomic end location to plot
+#' @param region_colour plot colour for regions in bed_table
+#' @param segments_colour plot colour of non-overlapping segment regions in brokenDown_bed_table
+#' @return list object with the results of breakDownOverlappingBedRegions and assignBedRegionsToNonOverlappingSets function calls
+#' @export
+plotBrokenDownBedRegions <- function(bed_table,
+                                     brokenDown_bed_table=NULL,
+                                     filename=NULL,
+                                     chrom,
+                                     pstart,
+                                     pend,
+                                     region_colour="#0067a5",
+                                     segments_colour="#F38400"){
+  
+  if(is.null(brokenDown_bed_table)){
+    message("[info plotBrokenDownBedRegions] running breakDownOverlappingBedRegions...")
+    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table = bed_table)
+  }
+  
+  # make sure ids are characters
+  bed_table$id <- as.character(bed_table$id)
+  brokenDown_bed_table$id <- as.character(brokenDown_bed_table$id)
+  # plot only segment in a given region of interest (include partial overlap)
+  selection <- !(bed_table$start > pend | bed_table$end < pstart) & bed_table$chr==chrom
+  if(sum(selection)==0){
+    message("[warning plotBrokenDownBedRegions] nothing to plot in the requested region.")
+    return(NULL)
+  }
+  bed_table <- bed_table[selection,,drop=F]
+  # if there is something in the bed_table then there must be something in the brokenDown_bed_table
+  selection <- !(brokenDown_bed_table$start > pend | brokenDown_bed_table$end < pstart) & brokenDown_bed_table$chr==chrom
+  brokenDown_bed_table <- brokenDown_bed_table[selection,,drop=F]
+  levelAssignmentList <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table,
+                                                              brokenDown_bed_table = brokenDown_bed_table)
+  
+  # OK now I should be able to print
+  ymax <- 2 + max(unlist(levelAssignmentList))
+  # xmin <- min(bed_table$start)
+  # xmax <- max(bed_table$end)
+  xmin <- pstart
+  xmax <- pend
+  halftick <- 0.15
+  
+  
+  if(!is.null(filename)){
+    cairo_pdf(filename = filename,width = 9,height = 5)
+  }
+  
+  par(mar=c(5,4,4,3))
+  plot(NA,bty="n",
+       ylim=c(0,ymax),
+       xlim=c(xmin,xmax),
+       ylab="",
+       yaxt = "n",
+       xlab="position")
+  abline(v = unique(c(bed_table$start,bed_table$end)),lty=3)
+  for(i in 1:nrow(bed_table)){
+    # i <- 1
+    ypos <- ymax - levelAssignmentList[[as.character(bed_table$id[i])]]
+    lines(x=c(bed_table$start[i],bed_table$end[i]),
+          y=rep(ypos,2),
+          col=region_colour,
+          lwd=2)
+    lines(x=rep(bed_table$start[i],2),
+          y=c(ypos+halftick,ypos-halftick),
+          col=region_colour,
+          lwd=2)
+    lines(x=rep(bed_table$end[i],2),
+          y=c(ypos+halftick,ypos-halftick),
+          col=region_colour,
+          lwd=2)
+  }
+  for(i in 1:nrow(brokenDown_bed_table)){
+    # i <- 1
+    ypos <- 1
+    lines(x=c(brokenDown_bed_table$start[i],brokenDown_bed_table$end[i]),
+          y=rep(ypos,2),
+          col=segments_colour,
+          lwd=2)
+    lines(x=rep(brokenDown_bed_table$start[i],2),
+          y=c(ypos+halftick,ypos-halftick),
+          col=segments_colour,
+          lwd=2)
+    lines(x=rep(brokenDown_bed_table$end[i],2),
+          y=c(ypos+halftick,ypos-halftick),
+          col=segments_colour,
+          lwd=2)
+  }
+  
+  # close the file
+  if(!is.null(filename)) dev.off()
+  
+  # return the broken down table and the assignment level
+  returnObj <- list()
+  returnObj$levelAssignmentList <- levelAssignmentList
+  returnObj$brokenDown_bed_table <- brokenDown_bed_table
+  return(returnObj)
+}
+
+

@@ -87,3 +87,27 @@ test_that("test assignBedRegionsToNonOverlappingSets", {
   expect_equal(sets_res,sets_expected)
   
 })
+
+test_that("test plotBrokenDownBedRegions", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(1,5),
+                          end=c(10,15),
+                          signal=c(1,1),
+                          text=c(10,20),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  
+  filename <- "test-plotBrokenDownBedRegions.pdf"
+  
+  sets_res <- plotBrokenDownBedRegions(bed_table = bed_table,
+                                       filename = filename,
+                                       chrom = 1,
+                                       pstart = 0,
+                                       pend = 20)
+  
+  expect_true(file.exists(filename))
+  
+  unlink(filename)
+  
+})
