@@ -70,3 +70,20 @@ test_that("test breakDownOverlappingBedRegions", {
   expect_equal(bed_table_res,bed_table_expected)
   
 })
+
+test_that("test assignBedRegionsToNonOverlappingSets", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(5000,10000),
+                          end=c(12000,15000),
+                          signal=c(1,1),
+                          text=c(10,20),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  sets_expected <- list(`1`=1,`2`=2)
+  
+  sets_res <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table)
+  
+  expect_equal(sets_res,sets_expected)
+  
+})

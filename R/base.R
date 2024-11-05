@@ -129,9 +129,12 @@ checkBedRegionsOverlap <- function(bed_table){
 #' Break down overlapping bed regions
 #'
 #' If a bed_table contains overlapping bed regions, split the overlapping regions
-#' and return a set of non-overlapping bed regions. An id column in the input
+#' and return a table of non-overlapping bed regions. An id column in the input
 #' bed_table data frame is required to keep track of which returned region is derived
-#' from which input region. 
+#' from which input region or regions. For example, given region id A, start 1, end 10,
+#' and region id B, start 5, end 15, the returned table will contain three regions:
+#' region id A, start 1, end 4, region id "A;B", start 5, end 10, and region id B,
+#' start 11, end 15.
 #' 
 #' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
 #' @param aggregateSignalMode can be either: mean or sum, relevant only if the signal column is present
@@ -353,3 +356,65 @@ breakDownOverlappingBedRegions <- function(bed_table,
   }
 }
 
+
+#' Assign bed regions to non-overlapping sets
+#'
+#' Given a table with bed regions, assign each region to a set, so that each
+#' set contains no overlapping bed regions. If the regions in the input bed_table
+#' do not overlap, then they will be all assigned to the same set. For example,
+#' given region id A, start 1, end 10, and region id B, start 5, end 15, the 
+#' function returns the list list(A=1,B=2).
+#' 
+#' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
+#' @param brokenDown_bed_table This should be the result of breakDownOverlappingBedRegions(bed_table,...),
+#' in case this has already been computed. If left NULL (the default), breakDownOverlappingBedRegions(bed_table)
+#' is called by this function with default parameters
+#' @return list object assigning a set number (integer) to each bed region id
+#' @export
+assignBedRegionsToNonOverlappingSets <- function(bed_table,
+                                                 brokenDown_bed_table=NULL){
+  if(is.null(brokenDown_bed_table)){
+    message("[info assignBedRegionsToNonOverlappingSets] running breakDownOverlappingBedRegions...")
+    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table)
+  }
+  
+  levelAssignmentList <- list()
+  for(i in 1:nrow(brokenDown_bed_table)){
+    # i <- 1
+    segmentIds <- strsplit(x = brokenDown_bed_table[i,"id"],split = ";")[[1]]
+    # consider only ids of segments that are fully in the region
+    segmentIds <- segmentIds[segmentIds %in% bed_table$id]
+    if(length(segmentIds)>0){
+      assignedIds <- segmentIds[segmentIds %in% names(levelAssignmentList)]
+      if(length(assignedIds)==0){
+        for (j in 1:length(segmentIds)) {
+          id <- segmentIds[j]
+          levelAssignmentList[[as.character(id)]] <- j
+        }
+      }else{
+        # some segments have already been assigned, need to find the first free position
+        # for each unassigned id I have
+        unassignedIds <- setdiff(segmentIds,assignedIds)
+        if(length(unassignedIds)>0){
+          for (j in 1:length(unassignedIds)) {
+            # j <- 1
+            id <- unassignedIds[j]
+            busyLanes <- sapply(assignedIds,function(x) levelAssignmentList[[as.character(x)]],USE.NAMES = F)
+            found <- FALSE
+            lane <- 1
+            while (!found) {
+              if(!lane %in% busyLanes){
+                found <- TRUE
+              }else{
+                lane <- lane + 1
+              }
+            }
+            levelAssignmentList[[as.character(id)]] <- lane
+            
+          }
+        }
+      }
+    }
+  }
+  return(levelAssignmentList)
+}

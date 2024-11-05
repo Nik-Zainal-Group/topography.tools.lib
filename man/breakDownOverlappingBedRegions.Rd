@@ -22,7 +22,10 @@ updated bed_table with non-overlapping regions
 }
 \description{
 If a bed_table contains overlapping bed regions, split the overlapping regions
-and return a set of non-overlapping bed regions. An id column in the input
+and return a table of non-overlapping bed regions. An id column in the input
 bed_table data frame is required to keep track of which returned region is derived
-from which input region.
+from which input region or regions. For example, given region id A, start 1, end 10,
+and region id B, start 5, end 15, the returned table will contain three regions:
+region id A, start 1, end 4, region id "A;B", start 5, end 10, and region id B,
+start 11, end 15.
 }
