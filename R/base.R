@@ -577,3 +577,105 @@ getIMD <- function(positions){
   }
   return(new_positions)
 }
+
+
+
+#' Merge adjacent bed regions
+#'
+#' Given a table with bed regions, merge regions that are adjacent and return
+#' the updated table. The bed regions should not be overlapping. If there are
+#' overlapping bed regions in the bed_table, consider running breakDownOverlappingBedRegions
+#' to obtain non-overlapping segments and then run this function to merge the
+#' adjacent segments. For example, given region id A, start 1, end 10, and region id B,
+#' start 11, end 15, the function returns the merged region with id "A;B", start 1, end 15.
+#' 
+#' 
+#' @param bed_table data frame with required columns: chr, start, end, id
+#' @return updated bed_table with merged adjacent regions
+#' @export
+mergeAdjacentBedRegions <- function(bed_table){
+  # check required columns
+  requiredcolumns <- c("id","chr","start","end")
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error mergeAdjacentBedRegions] missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  # check overlaps
+  res_check <- checkBedRegionsOverlap(bed_table=bed_table)
+  if(!is.null(res_check)){
+    message("[error mergeAdjacentBedRegions] bed_table regions should not overlap, ",
+            "you can break them down using the function breakDownOverlappingBedRegions.")
+    return(NULL)
+  }
+  # now sort
+  bed_table <- sortBed(bed_table = bed_table)
+  # now merge
+  newTable <- NULL
+  chroms <- unique(bed_table$chr)
+  for(chrom in chroms){
+    # chrom <- chroms[1]
+    chrTable <- bed_table[bed_table$chr==chrom,requiredcolumns,drop=F]
+    if(nrow(chrTable)==1){
+      # only one row so nothing to merge with
+      newTable <- rbind(newTable,chrTable)
+    }else{
+      # sure more than one
+      regdist <- chrTable$start[2:(nrow(chrTable))] - chrTable$end[1:(nrow(chrTable)-1)]
+      mergepos <- which(regdist==1)
+      if(length(mergepos)==0){
+        # nothing to merge in this chrom
+        newTable <- rbind(newTable,chrTable)
+      }else{
+        # find where to merge and where to copy rows
+        # group the adjacent windows in case of multiple consecutive merges
+        mergeGroups <- list()
+        if(length(mergepos)==1) {
+          mergeGroups[["1"]] <- mergepos
+        }else{
+          currentMergeGroup <- 1
+          for(i in 1:length(mergepos)){
+            mergeGroups[[as.character(currentMergeGroup)]] <- c(mergeGroups[[as.character(currentMergeGroup)]],mergepos[i])
+            if(i<length(mergepos)){
+              if(mergepos[i+1]-mergepos[i]>1) currentMergeGroup <- currentMergeGroup + 1
+            }
+          }
+        }
+        # check for rows to copy before the merges
+        if(min(mergeGroups[["1"]])>1){
+          # yes we copy from 1 to the first merge
+          newTable <- rbind(newTable,chrTable[1:(min(mergeGroups[["1"]])-1),,drop=F])
+        }
+        # now get to merge
+        for (ni in 1:length(mergeGroups)){
+          # ni <- 1
+          n <- names(mergeGroups)[ni]
+          mergeRows <- min(mergeGroups[[n]]):(max(mergeGroups[[n]])+1)
+          newTable <- rbind(newTable,data.frame(id=paste(chrTable[mergeRows,"id"],collapse = ";"),
+                                                chr=chrom,
+                                                start=min(chrTable[mergeRows,"start"]),
+                                                end=max(chrTable[mergeRows,"end"]),
+                                                stringsAsFactors = F))
+          # now I should check if there are rows to copy after the mergeGroups or in between
+          if(ni==length(mergeGroups)){
+            # ok we are at the end
+            startingrow <- max(mergeGroups[[n]])+2
+            if(startingrow<=nrow(chrTable)){
+              # and we got something to add
+              newTable <- rbind(newTable,chrTable[startingrow:nrow(chrTable),,drop=F])
+            }
+          }else{
+            # there is another merge later
+            startingrow <- max(mergeGroups[[n]])+2
+            endingrow <- min(mergeGroups[[names(mergeGroups)[ni+1]]])-1
+            if(startingrow<=endingrow){
+              newTable <- rbind(newTable,chrTable[startingrow:endingrow,,drop=F])
+            }
+          }
+        }
+      }
+    }
+    
+  }
+  return(newTable)
+}

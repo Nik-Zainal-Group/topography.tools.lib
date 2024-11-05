@@ -128,3 +128,25 @@ test_that("test getIMD", {
   expect_equal(positions_IMD,expect_IMD)
   
 })
+
+test_that("test mergeAdjacentBedRegions", {
+  
+  bed_table <- data.frame(chr=c(1,1,2),
+                          start=c(1,11,10),
+                          end=c(10,15,15),
+                          id=c("A","B","C"),
+                          stringsAsFactors = F)
+  expect_merge <- data.frame(id=c("A;B","C"),
+                             chr=c("1","2"),
+                             start=c(1,10),
+                             end=c(15,15),
+                             stringsAsFactors = F)
+  
+  bed_table_merged <- mergeAdjacentBedRegions(bed_table)
+  
+  rownames(expect_merge) <- c(1,nrow(expect_merge))
+  rownames(bed_table_merged) <- c(1,nrow(bed_table_merged))
+  
+  expect_equal(bed_table_merged,expect_merge)
+  
+})
