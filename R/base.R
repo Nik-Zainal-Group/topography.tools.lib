@@ -788,3 +788,498 @@ trimNfromBed <- function(bed_table,
   return(regions_table_final)
 }
 
+
+#' Remove N from bed table
+#'
+#' Given a table of bed regions and a reference genome, trim and split the bed
+#' bed regions to remove reference genome N positions.
+#' 
+#' 
+#' @param bed_table data frame with required columns: chr, start, end, signal
+#' @param bed_table2 data frame with required columns: chr, start, end, signal
+#' @param fileout name of the output file for the plot, use .pdf extension
+#' @param pchr chromosome name of the region to plot
+#' @param pstart left boundary position of the genomic region to plot
+#' @param pend right boundary position of the genomic region to plot
+#' @param signalColour colour of the signal line
+#' @param signalColour2 colour of the second signal line from bed_table2
+#' @param highlightRegions highlightRegions is a list of bed tables (chr, start, end)
+#' @param highlightRegionsColours highlightRegionsColours is a list of colours.
+#' The names of the list need to match the names of the highlightRegions list
+#' @param highlightPositions highlightPositions is a list of position tables (chr, position, optional text)
+#' @param highlightPositionsColours highlightPositionsColours is a list of colours.
+#' The names of the list need to match the names of the highlightPositions list
+#' @param plotGenes if TRUE the coding genes in the regions will be plotted on top
+#' @param genomev hg19 or hg38
+#' @param main title of the plot
+#' @param lwd line width of the plot
+#' @param cexlabels scaling parameter for the labels
+#' @param ylabel ylabel for the bed_table signal
+#' @param ylabel2 ylabel for the bed_table2 signal
+#' @export
+plotBedSignalRegion <- function(bed_table,
+                                bed_table2=NULL,
+                                fileout=NULL,
+                                pchr,
+                                pstart,
+                                pend,
+                                signalColour="black",
+                                signalColour2="grey",
+                                highlightRegions=NULL,
+                                highlightRegionsColours=NULL,
+                                highlightPositions=NULL,
+                                highlightPositionsColours=NULL,
+                                plotGenes=TRUE,
+                                genomev="hg19",
+                                main="",
+                                lwd=1.5,
+                                cexlabels=1,
+                                ylabel="signal",
+                                ylabel2="signal"){
+  
+  # check overlaps
+  res_check <- checkBedRegionsOverlap(bed_table=bed_table)
+  if(!is.null(res_check)){
+    message("[warning plotBedSignalRegion] some bed_table regions overlap. Signal in ",
+            "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
+            "yourself, you can use the function breakDownOverlappingBedRegions.")
+  }
+  if(!is.null(bed_table2)){
+    res_check <- checkBedRegionsOverlap(bed_table=bed_table2)
+    if(!is.null(res_check)){
+      message("[warning plotBedSignalRegion] some bed_table2 regions overlap. Signal in ",
+              "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
+              "yourself, you can use the function breakDownOverlappingBedRegions.")
+    }
+  }
+  
+  # set plot parameters in inch
+  mbottom <- 0.9
+  mtop <- 1
+  mleft <- 1
+  mright <- 0.5
+  if(!is.null(highlightRegions)){
+    mright <- 0.1+(max(strwidth(names(highlightRegions),units = "inch",cex = 1,ps = par(ps=12))))
+  }
+  if(!is.null(bed_table2)){
+    mright <- max(mright,1)
+  }
+  datawidth <- 6
+  dataheight <- 1.2
+  highlightRegionHeightInch <- 0.2
+  basesPerInch <- (pend-pstart)/datawidth
+  
+  # convert to character just in case
+  pchr <- as.character(pchr)
+  
+  # select the data that is overlapping the region of interest
+  regionBed <- bed_table[bed_table$chr==pchr,,drop=F]
+  if(nrow(regionBed)>0){
+    selection <- !(regionBed$start > pend | regionBed$end < pstart)
+    regionBed <- regionBed[selection,,drop=F]
+  }
+  # same for bed_table2 if any
+  regionBed2 <- NULL
+  if(!is.null(bed_table2)){
+    regionBed2 <- bed_table2[bed_table2$chr==pchr,,drop=F]
+    if(nrow(regionBed2)>0){
+      selection <- !(regionBed2$start > pend | regionBed2$end < pstart)
+      regionBed2 <- regionBed2[selection,,drop=F]
+    }
+  }
+  
+  # before we plot, let's check that we have data for all positions in the region
+  # we can do that by adding one bed region from start to end with zero signal
+  # and break down the overlap
+  regionBed <- regionBed[,c("chr", "start", "end", "signal"),drop=F]
+  plotBed <- data.frame(chr=pchr,
+                        start=pstart,
+                        end=pend,
+                        signal=0,
+                        stringsAsFactors = F)
+  regionBed <- rbind(regionBed,plotBed)
+  regionBed$id <- 1:nrow(regionBed)
+  res_bd <- breakDownOverlappingBedRegions(bed_table = regionBed,
+                                           aggregateSignalMode = "sum")
+  # remove segments that are outside the plot region
+  plotregionId <- as.character(nrow(regionBed))
+  selectRows <- sapply(res_bd$id,function(id){
+    ids <- strsplit(id,split = ";")[[1]]
+    return(plotregionId %in% ids)
+  },USE.NAMES = F)
+  res_bd <- res_bd[selectRows,,drop=F]
+  
+  # same for bed_table2
+  res_bd2 <- NULL
+  if(!is.null(regionBed2)){
+    regionBed2 <- regionBed2[,c("chr", "start", "end", "signal"),drop=F]
+    plotBed <- data.frame(chr=pchr,
+                          start=pstart,
+                          end=pend,
+                          signal=0,
+                          stringsAsFactors = F)
+    regionBed2 <- rbind(regionBed2,plotBed)
+    regionBed2$id <- 1:nrow(regionBed2)
+    res_bd2 <- breakDownOverlappingBedRegions(bed_table = regionBed2,
+                                              aggregateSignalMode = "sum")
+    # remove segments that are outside the plot region
+    plotregionId <- as.character(nrow(regionBed2))
+    selectRows <- sapply(res_bd2$id,function(id){
+      ids <- strsplit(id,split = ";")[[1]]
+      return(plotregionId %in% ids)
+    },USE.NAMES = F)
+    res_bd2 <- res_bd2[selectRows,,drop=F]
+  }
+  
+  # get Genes
+  genetable <- NULL
+  levelAssignmentList <- NULL
+  if(plotGenes){
+    # read the gene files
+    if(genomev=="hg19"){
+      genetable <- genetable_hg19
+    }else if(genomev=="hg38"){
+      genetable <- genetable_hg38
+    }else{
+      message("[error plotBedSignalRegion] invalid genomev, cannot annotate genes. Use hg19 or hg38.")
+      return(NULL)
+    }
+    # only protein coding
+    genetable <- genetable[genetable$genetype=="protein_coding",,drop=F]
+    if(!startsWith(as.character(bed_table$chr[1]),prefix = "chr")) genetable$chr <- substr(genetable$chr,4,5)
+    # select only the relevant part of the table
+    genetable <- genetable[genetable$chr==pchr,,drop=F]
+    genetable <- genetable[!(genetable$start > pend | genetable$end < pstart),,drop=F]
+    if(nrow(genetable)>0){
+      genetable$id <- 1:nrow(genetable)
+      tmpgenetable <- genetable
+      # when assigning levels I need to consider if the text with the gene name also overlaps
+      geneNamesBasesSize <- basesPerInch*strwidth(tmpgenetable$genename,units = "inch",cex = 0.5,ps = par(ps=12))
+      for(j in 1:nrow(tmpgenetable)) {
+        genemiddlepoint <- (max(tmpgenetable$start[j],pstart)+min(tmpgenetable$end[j],pend))/2
+        tmpgenetable$start[j] <- round(min(tmpgenetable$start[j],genemiddlepoint-geneNamesBasesSize[j]/2))
+        tmpgenetable$end[j] <- round(max(tmpgenetable$end[j],genemiddlepoint+geneNamesBasesSize[j]/2))
+      }
+      genes_res <- breakDownOverlappingBedRegions(bed_table = tmpgenetable)
+      levelAssignmentList <- assignBedRegionsToNonOverlappingSets(bed_table = tmpgenetable,
+                                                                  brokenDown_bed_table = genes_res)
+    }
+  }
+  
+  
+  # infer more parameters for plotting
+  signalMin <- min(0,min(res_bd$signal))
+  signalMax <- max(1,max(res_bd$signal))
+  ydatagap <- 0.05*(signalMax-signalMin)
+  ydatagapTop <- 0.15*(signalMax-signalMin)
+  ylimData <- c(signalMin-ydatagap,signalMax+ydatagapTop)
+  ySize <- ylimData[2]-ylimData[1]
+  highlightRegionHeightData <- ySize*highlightRegionHeightInch/dataheight
+  nhighlightregions <- 0
+  if(!is.null(highlightRegions)) {
+    nhighlightregions <- length(highlightRegions)
+  }
+  nhighlightpositions <- 0
+  if(!is.null(highlightPositions)) {
+    nhighlightpositions <- length(highlightPositions)
+  }
+  # check if we need to plot genes
+  nGeneLayers <- 0
+  if(!is.null(levelAssignmentList)) {
+    nGeneLayers <- 1 + max(unlist(levelAssignmentList))
+  }
+  genesGap <- 0.6*highlightRegionHeightData
+  # determine actual ylim
+  ylim <- c(ylimData[1],ylimData[2]+(nhighlightregions+nGeneLayers)*highlightRegionHeightData)
+  # determine position of text for highlight regions
+  xtextgap <- (pend-pstart)*0.01
+  xtextpos <- (pend+xtextgap)/1e6
+  
+  # determine plot size in inch
+  pwidth <- mleft + datawidth + mright
+  pheight <- mbottom + dataheight + (nhighlightregions+nGeneLayers)*highlightRegionHeightInch + mtop
+  
+  #  ok now plot
+  if(!is.null(fileout)) cairo_pdf(filename = fileout,width = pwidth,height = pheight)
+  par(mai=c(mbottom,mleft,mtop,mright),mgp=c(2.5,0.9,0))
+  xlab <- ifelse(startsWith(as.character(pchr),prefix = "chr"),substr(pchr,4,8),pchr)
+  plot(NA,
+       xlim=c(pstart,pend)/1e6,
+       bty="n",
+       ylim=ylim,
+       main=main,
+       ylab="",
+       las=1,
+       xaxs="i",
+       yaxs="i",
+       yaxt="n",
+       xlab=paste0("chromosome ",xlab," (Mb)"))
+  # ylabel
+  xylabelpos <- (pstart - 0.1*(pend-pstart))/1e6
+  text(x = xylabelpos,
+       y = (ylimData[1]+ylimData[2])/2,
+       labels=ylabel,srt=90,adj=0.5,xpd=T,col=signalColour)
+  lines(x=c(pstart,pend)/1e6,y=c(ylimData[1],ylimData[1]),col="black",xpd=T)
+  lines(x=c(pstart,pstart)/1e6,y=c(ylimData[1],ylimData[2]),col="black",xpd=T)
+  # ok figure out the axis from 0 to something just below ylimData[2]
+  yaxisgaps <- c(1,2,5)
+  gapi <- 1
+  gapscale <- 1
+  gapfound <- FALSE
+  gaptarget <- ylimData[2]/2
+  yaxisfinalgap <- NULL
+  while (!gapfound) {
+    currentgap <- yaxisgaps[gapi]/gapscale
+    # check if we are below gaptarget
+    if(currentgap<=gaptarget){
+      # if the next one up is greater than target we are done
+      if(gapi==3){
+        nextgap <- yaxisgaps[1]/gapscale*10
+      }else{
+        nextgap <- yaxisgaps[gapi+1]/gapscale
+      }
+      if(nextgap>gaptarget){
+        # found it
+        yaxisfinalgap <- currentgap
+        gapfound <- TRUE
+      }else{
+        # need to go higher
+        if(gapi==3){
+          gapi <- 1
+          gapscale <- gapscale/10
+        }else{
+          gapi <- gapi + 1
+        }
+      }
+    }else{
+      # need to go lower
+      if(gapi==1){
+        gapi <- 3
+        gapscale <- gapscale*10
+      }else{
+        gapi <- gapi - 1
+      }
+    }
+  }
+  
+  if(!is.null(yaxisfinalgap)) {
+    axis(side = 2,
+         at=seq(0,ylimData[2],yaxisfinalgap),
+         las=2,
+         col=signalColour,
+         col.ticks=signalColour,
+         col.axis=signalColour)
+  }
+  if(nrow(res_bd)>0){
+    # if there is at least one segment to draw, draw a line
+    currentSegment <- c(res_bd[1,"start"],res_bd[1,"end"])
+    lines(as.numeric(currentSegment)/1e6,
+          rep(res_bd$signal[1],2),
+          lwd=lwd,
+          col=signalColour)
+    if(nrow(res_bd)>1){
+      for(i in 2:nrow(res_bd)){
+        # i <- 2
+        previousSegment <- currentSegment
+        currentSegment <- c(res_bd[i,"start"],res_bd[i,"end"])
+        lines(rep(as.numeric(previousSegment[2]),2)/1e6,
+              c(res_bd$signal[i-1],res_bd$signal[i]),
+              lwd=lwd,
+              col=signalColour)
+        lines(as.numeric(currentSegment)/1e6,
+              rep(res_bd$signal[i],2),
+              lwd=lwd,
+              col=signalColour)
+      }
+    }
+  }
+  
+  # now plot the highlight regions if any
+  if(nhighlightregions>0){
+    for(i in 1:nhighlightregions){
+      # i <- 1
+      n <- names(highlightRegions)[i]
+      # highlight region range
+      rbottom <- ylimData[2]+highlightRegionHeightData*(i-1)
+      rtop <- ylimData[2]+highlightRegionHeightData*i
+      
+      # draw some divisory dotted line
+      abline(h=rbottom,lty=3,col="darkgrey")
+      
+      # write label on the right
+      text(x = xtextpos,y=(rbottom+rtop)/2,
+           labels=n,adj=0,xpd=TRUE,cex=cexlabels)
+      
+      # I need to find out whether we have any region to plot 
+      regionBed <- highlightRegions[[n]][highlightRegions[[n]]$chr==pchr,,drop=F]
+      if(nrow(regionBed)>0){
+        selection <- !(regionBed$start > pend | regionBed$end < pstart)
+        regionBed <- regionBed[selection,,drop=F]
+      }
+      if(nrow(regionBed)>0){
+        for (j in 1:nrow(regionBed)){
+          # j <- 1
+          rect(xleft = regionBed[j,"start"]/1e6,
+               ybottom = rbottom,
+               xright = regionBed[j,"end"]/1e6,
+               ytop = rtop,
+               col = highlightRegionsColours[[n]],
+               border = NA)
+        }
+      }
+      
+    }
+    # more dotted lines if genes are plotted on top
+    if(!is.null(levelAssignmentList)) abline(h=rtop,lty=3,col="darkgrey")
+  }
+  
+  # now plot genes if any
+  if(!is.null(levelAssignmentList)) {
+    highlightregionsTop <- ylimData[2]+highlightRegionHeightData*nhighlightregions
+    for(i in 1:nrow(genetable)){
+      # i <- 1
+      xleft <- max(genetable$start[i],pstart)
+      xright <- min(genetable$end[i],pend)
+      textxpos <- (xleft+xright)/2
+      ypos <- highlightregionsTop+genesGap+(levelAssignmentList[[as.character(i)]]-1)*highlightRegionHeightData
+      lines(x=c(xleft,xright)/1e6,y=c(ypos,ypos),lwd=3)
+      text(genetable$genename[i],cex = 0.5,y = ypos+0.5*highlightRegionHeightData,x=textxpos/1e6,adj=0.5,xpd=T)
+    }
+  }
+  
+  # now plot the highlight positions if any
+  if(nhighlightpositions>0){
+    for(i in 1:nhighlightpositions){
+      # i <- 1
+      n <- names(highlightPositions)[i]
+      
+      # I need to find out whether we have any position to plot 
+      regionPositions <- highlightPositions[[n]][highlightPositions[[n]]$chr==pchr,,drop=F]
+      if(nrow(regionPositions)>0){
+        selection <- regionPositions$position <= pend & regionPositions$position >= pstart
+        regionPositions <- regionPositions[selection,,drop=F]
+      }
+      if(nrow(regionPositions)>0){
+        for (j in 1:nrow(regionPositions)){
+          # j <- 1
+          abline(v=regionPositions[j,"position"]/1e6,
+                 col=highlightPositionsColours[[n]],
+                 lwd=lwd)
+          if("text" %in% colnames(regionPositions)){
+            text(x=(regionPositions[j,"position"]-2*xtextgap)/1e6,
+                 y=sum(ylimData)/2,labels=regionPositions[j,"text"],
+                 col=highlightPositionsColours[[n]],
+                 srt=90,adj=0.5)
+          }
+        }
+      }
+    }
+  }
+  
+  # I can only add the second signal after everything else has been plotted
+  if(!is.null(res_bd2)){
+    signalMin <- min(0,min(res_bd2$signal))
+    signalMax <- max(1,max(res_bd2$signal))
+    ydatagap <- 0.05*(signalMax-signalMin)
+    ydatagapTop <- 0.15*(signalMax-signalMin)
+    ylimData <- c(signalMin-ydatagap,signalMax+ydatagapTop)
+    ySize <- ylimData[2]-ylimData[1]
+    ylim <- c(ylimData[1],ylimData[2])
+    par(fig=c(0,1,mbottom/pheight,(mbottom+dataheight)/pheight),
+        new=TRUE,
+        mai=c(0,mleft,0,mright),mgp=c(2.5,0.9,0))
+    plot(NA,
+         xlim=c(pstart,pend)/1e6,
+         bty="n",
+         ylim=ylim,
+         main="",
+         ylab="",
+         las=1,
+         xaxs="i",
+         yaxs="i",
+         yaxt="n",
+         xaxt="n",
+         xlab="")
+    # ylabel
+    xylabelpos <- (pend + 0.1*(pend-pstart))/1e6
+    text(x = xylabelpos,
+         y = (ylimData[1]+ylimData[2])/2,
+         labels=ylabel2,srt=90,adj=0.5,xpd=T,col=signalColour2)
+    lines(x=c(pend,pend)/1e6,y=c(ylimData[1],ylimData[2]),col="black",xpd=T)
+    # ok figure out the axis from 0 to something just below ylimData[2]
+    yaxisgaps <- c(1,2,5)
+    gapi <- 1
+    gapscale <- 1
+    gapfound <- FALSE
+    gaptarget <- ylimData[2]/2
+    yaxisfinalgap <- NULL
+    while (!gapfound) {
+      currentgap <- yaxisgaps[gapi]/gapscale
+      # check if we are below gaptarget
+      if(currentgap<=gaptarget){
+        # if the next one up is greater than target we are done
+        if(gapi==3){
+          nextgap <- yaxisgaps[1]/gapscale*10
+        }else{
+          nextgap <- yaxisgaps[gapi+1]/gapscale
+        }
+        if(nextgap>gaptarget){
+          # found it
+          yaxisfinalgap <- currentgap
+          gapfound <- TRUE
+        }else{
+          # need to go higher
+          if(gapi==3){
+            gapi <- 1
+            gapscale <- gapscale/10
+          }else{
+            gapi <- gapi + 1
+          }
+        }
+      }else{
+        # need to go lower
+        if(gapi==1){
+          gapi <- 3
+          gapscale <- gapscale*10
+        }else{
+          gapi <- gapi - 1
+        }
+      }
+    }
+    
+    if(!is.null(yaxisfinalgap)) {
+      axis(side = 4,
+           at=seq(0,ylimData[2],yaxisfinalgap),
+           las=2,
+           col=signalColour2,
+           col.ticks=signalColour2,
+           col.axis=signalColour2)
+    }
+    if(nrow(res_bd2)>0){
+      # if there is at least one segment to draw, draw a line
+      currentSegment <- c(res_bd2[1,"start"],res_bd2[1,"end"])
+      lines(as.numeric(currentSegment)/1e6,
+            rep(res_bd2$signal[1],2),
+            lwd=lwd,
+            col=signalColour2)
+      if(nrow(res_bd2)>1){
+        for(i in 2:nrow(res_bd2)){
+          # i <- 2
+          previousSegment <- currentSegment
+          currentSegment <- c(res_bd2[i,"start"],res_bd2[i,"end"])
+          lines(rep(as.numeric(previousSegment[2]),2)/1e6,
+                c(res_bd2$signal[i-1],res_bd2$signal[i]),
+                lwd=lwd,
+                col=signalColour2)
+          lines(as.numeric(currentSegment)/1e6,
+                rep(res_bd2$signal[i],2),
+                lwd=lwd,
+                col=signalColour2)
+        }
+      }
+    }
+  }
+  if(!is.null(fileout)) dev.off()
+  
+}
+

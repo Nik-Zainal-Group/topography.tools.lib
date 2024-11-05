@@ -12,3 +12,5 @@ RoxygenNote: 7.2.3
 Imports: 
     BSgenome.Hsapiens.1000genomes.hs37d5,
     BSgenome.Hsapiens.UCSC.hg38
+Depends: 
+    R (>= 2.10)

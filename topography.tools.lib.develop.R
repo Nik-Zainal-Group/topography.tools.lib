@@ -12,6 +12,14 @@ devtools::document()
 devtools::install()
 # devtools::install(dependencies = FALSE)
 
+genetable_hg19 <- read.table("data/genes/Hg19_Gene_List_withIDs.bed",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
+genetable_hg38 <- read.table("data/genes/Hg38_Gene_List_withIDs.bed",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
+
+usethis::use_data(genetable_hg19,
+                  genetable_hg38,
+                  internal = TRUE,
+                  overwrite = TRUE)
+
 #test all
 devtools::test()
 

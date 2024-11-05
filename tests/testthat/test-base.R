@@ -178,3 +178,58 @@ test_that("test trimNfromBed", {
   expect_equal(bed_table_trimmed,expected_trimmed)
   
 })
+
+test_that("test plotBedSignalRegion single signal", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(10000,50000),
+                          end=c(100000,150000),
+                          signal=c(1,2),
+                          text=c(10,20),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  
+  filename <- "test-plotBedSignalRegion.pdf"
+  
+  sets_res <- plotBedSignalRegion(bed_table = bed_table,
+                                  fileout = filename,
+                                  pchr = 1,
+                                  pstart = 1,
+                                  pend = 200000)
+  
+  expect_true(file.exists(filename))
+  
+  unlink(filename)
+  
+})
+
+test_that("test plotBedSignalRegion with two signals", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(10000,50000),
+                          end=c(100000,150000),
+                          signal=c(1,2),
+                          text=c(10,20),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  bed_table2 <- data.frame(chr=c(1),
+                          start=c(90000),
+                          end=c(220000),
+                          signal=c(5),
+                          id=c(1),
+                          stringsAsFactors = F)
+  
+  filename <- "test-plotBedSignalRegion2.pdf"
+  
+  sets_res <- plotBedSignalRegion(bed_table = bed_table,
+                                  bed_table2 = bed_table2,
+                                  fileout = filename,
+                                  pchr = 1,
+                                  pstart = 1,
+                                  pend = 200000)
+  
+  expect_true(file.exists(filename))
+  
+  unlink(filename)
+  
+})
