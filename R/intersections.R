@@ -1,169 +1,5 @@
 
 
-
-# positions need columns: chr, position, id, optionally class
-# regions need columns: chr, start, end, id, optionally class
-# class can be omitted, and a single class will be added
-# regions cannot overlap as each position will be assigned to at most one region
-# this function will automatically sort the positions and regions
-# for faster assignment of positions to regions
-# positions <- data.frame(chr = c(1,1,1,1,1),position = c(100,200,300,310,500),id=paste0("p",c(1,2,3,4,5)),class=paste0("pr",c(1,2,2,2,1)),stringsAsFactors = F)
-# bed_table <- data.frame(chr = c(1,1,1,1),start = c(95,195,295,350),end = c(110,210,320,400),id=paste0("r",c(1,2,3,4)),class=c("cr1","cr1","cr2","cr2"),stringsAsFactors = F)
-
-# positions <- data.frame(chr = c(1,1,1,1,1,1,1,1),position = c(100,200,300,400,500,600,700,800),
-#                         id=paste0("y",c(1,2,3,4,5,6,7,8)),class=c("C","B","C","A","A","B","B","C"),stringsAsFactors = F)
-# bed_table <- data.frame(chr = c(1,1,1,1),start = c(95,206,450,506),end = c(205,405,505,705),
-#                         id=paste0("x",c(1,2,3,4)),class=c("g2","g1","g1","g2"),stringsAsFactors = F)
-
-intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
-                                                           bed_table){
-  # check column requirements
-  # check required columns
-  requiredcolumns <- c("chr","position","id")
-  if(!all(requiredcolumns %in% colnames(positions))){
-    missingcolumns <- setdiff(requiredcolumns,colnames(positions))
-    message("[error intersectPositionsAndBedRegions_nonOverlapping] positions table missing required columns: ",paste(missingcolumns,collapse = ", "))
-    return(NULL)
-  }
-  requiredcolumns <- c("chr","start","end","id")
-  if(!all(requiredcolumns %in% colnames(bed_table))){
-    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
-    message("[error intersectPositionsAndBedRegions_nonOverlapping] bed_table missing required columns: ",paste(missingcolumns,collapse = ", "))
-    return(NULL)
-  }
-  
-  # check which chromosomes have overlap if any
-  overlapChroms <- checkBedRegionsOverlap(bed_table)
-  if(!is.null(overlapChroms)){
-    message("[error intersectPositionsAndBedRegions_nonOverlapping] regions should not overlap, ",
-            "you can break them down using the function breakDownOverlappingBedRegions, ",
-            "or you can run intersectPositionsAndBedRegions.")
-    return(NULL)
-  }
-  # need them to be ordered
-  positions <- sortPositions(positions)
-  bed_table <- sortBed(bed_table)
-  chroms <- sortChroms(union(positions$chr,bed_table$chr))
-  # add single class if missing
-  if(!("class" %in% colnames(positions))){
-    positions$class <- "anyPosition"
-  }
-  pclasses <- as.character(unique(positions$class))
-  if(!("class" %in% colnames(bed_table))){
-    bed_table$class <- "anyRegion"
-  }
-  rclasses <- as.character(unique(bed_table$class))
-  
-  # now if I want to annotated both positions and bed regions, I need to be
-  # able to add bed regions classes and ids to the positions table and
-  # positions ids and classes to the bed table. In the case of the bed table,
-  # more than one id of positions and more than one class are possible, so
-  # lists are a good idea. Use ids for quick access.
-  # perhaps I should do the classes at the end from the ids in one go.
-  
-  # index
-  positions$id <- as.character(positions$id)
-  bed_table$id <- as.character(bed_table$id)
-  rownames(positions) <- positions$id
-  rownames(bed_table) <- bed_table$id
-  
-  # annotation lists
-  idMapPositionsToRegions <- list()
-  idMapRegionsToPositions <- list()
-  
-  for (chrom in chroms) {
-    # chrom <- chroms[1]
-    positions_chrom <- positions[positions$chr==chrom,,drop=F]
-    regions_chrom <- bed_table[bed_table$chr==chrom,,drop=F]
-    # if there are no positions there is nothing to do in this chromosome
-    if(nrow(positions_chrom)>0){
-      # if there are no regions in this chromosome, all the positions are
-      # classified as noMatch
-      if(nrow(regions_chrom)>0){
-        # in this chromosome we have both regions and mutations, ordered by position
-        # now we start the core algorithm
-        currentPosition <- 1
-        currentRegion <- 1
-        while (currentPosition<=nrow(positions_chrom) | currentRegion<=nrow(regions_chrom)) {
-          # first of all, check that we have not finished with the positions or the regions
-          if(currentPosition>nrow(positions_chrom)){
-            # no more positions to check, so all remaining regions must be empty
-            # just skip to the end
-            currentRegion <- nrow(regions_chrom) + 1
-          }else if(currentRegion>nrow(regions_chrom)){
-            # no more regions to check, so if there are any other positions then they 
-            # should be classified as noMatch
-            if(currentPosition<=nrow(positions_chrom)){
-              nPositionsRemaining <- nrow(positions_chrom) - currentPosition + 1
-              # skip to the end
-              currentPosition <- nrow(positions_chrom) + 1
-            }
-          }else{
-            # we still have positions and regions left to check
-            if(positions_chrom[currentPosition,"position"]<regions_chrom[currentRegion,"start"]){
-              # the current position happens before the start of the current region, so it is noMatch
-              # move one position forward
-              currentPosition <- currentPosition + 1
-            }else if(positions_chrom[currentPosition,"position"]<=regions_chrom[currentRegion,"end"]){
-              # if you get here, the current position is after start, but within the current region
-              # add it to the class of the region
-              # annotate the position and the region
-              idMapPositionsToRegions[[positions_chrom[currentPosition,"id"]]] <- c(idMapPositionsToRegions[[positions_chrom[currentPosition,"id"]]],regions_chrom[currentRegion,"id"])
-              idMapRegionsToPositions[[regions_chrom[currentRegion,"id"]]] <- c(idMapRegionsToPositions[[regions_chrom[currentRegion,"id"]]],positions_chrom[currentPosition,"id"])
-              # move one position forward
-              currentPosition <- currentPosition + 1
-            }else{
-              # if you get here, then the current position must be after the end of the current region
-              # which means we are done with this region and we move forward
-              currentRegion <- currentRegion + 1
-            }
-          }
-        }
-      }
-      
-    }
-  }
-  # Annotation of positions and regions
-  
-  # 1. how many positions are associated with each region? must be 0 or n 
-  # 2. how many positions for each class are associated with each region? either one or multiple classes or a noPositions class
-  # 3. how many positions for each class are associated with each region class or with the noMatch class
-  # 4. how many positions are associated with each region class or with the noMatch class (aggregate of 3.) 
-  # 5. how many regions are associated with each position? must be 0 or 1 because of no overlapping regions
-  # 6. how many regions for each class are associated with each position? either one class or a noMatch class
-  # 7. how many regions for each class are associated with each position class or with the noPositions class
-  # 8. how many regions are associated with each position class or with the noPositions class (aggregate of 7.)
-  
-  res_stats <- intersectionStatsComplete(idMap1to2 = idMapPositionsToRegions,
-                                         idMap2to1 = idMapRegionsToPositions,
-                                         idclassmap1 = positions,
-                                         idclassmap2 = bed_table)
-  
-  # collect results in the return object
-  returnObj <- list()
-  
-  returnObj$annotatedPositions <- res_stats$idclassmap1_updated
-  returnObj$annotatedBedRegions <- res_stats$idclassmap2_updated
-  
-  returnObj$totalPostionsInAnyRegion <- res_stats$totalId1matchingAnyId2
-  returnObj$totalRegionsAtAnyPosition <- res_stats$totalId2matchingAnyId1
-  
-  returnObj$idMapPositionsToRegions <- idMapPositionsToRegions
-  returnObj$idMapRegionsToPositions <- idMapRegionsToPositions
-  
-  returnObj$countsTable_positionsInEachRegion <- res_stats$countsTable_classes1_in_id2
-  returnObj$countsTable_positionsInEachRegion_total <- res_stats$countsTable_total1_in_id2
-  returnObj$countsTable_positionsInRegionClasses <- res_stats$countsTable_classes1_in_classes2
-  returnObj$countsTable_positionsInRegionClasses_total <- res_stats$countsTable_total1_in_classes2
-  
-  returnObj$countsTable_regionsAtEachPosition <- res_stats$countsTable_classes2_in_id1
-  returnObj$countsTable_regionsAtEachPosition_total <- res_stats$countsTable_total2_in_id1
-  returnObj$countsTable_regionsAtPositionClasses <- res_stats$countsTable_classes2_in_classes1
-  returnObj$countsTable_regionsAtPositionClasses_total <- res_stats$countsTable_total2_in_classes1
-  
-  return(returnObj)
-}
-
 #' Intersection statistics
 #'
 #' This is a low level function, the engine that calculates the overlap between
@@ -357,9 +193,294 @@ reverseIdMap <- function(idMap){
     # id1 <- names(idMap)[1]
     for(id2 in idMap[[id1]]){
       # id2 <- idMap[[id1]][1]
+      id2 <- as.character(id2)
       reverseMap[[id2]] <- c(reverseMap[[id2]],id1)
     }
   }
   return(reverseMap)
+}
+
+mergeIdMaps <- function(idMap1,
+                        idMap2){
+  if(length(idMap1)==0){
+    return(idMap2)
+  }else if(length(idMap2)==0){
+    return(idMap1)
+  }else{
+    for(id in names(idMap2)){
+      idMap1[[id]] <- unique(c(idMap1[[id]],idMap2[[id]]))
+    }
+    return(idMap1)
+  }
+}
+
+#' Intersect positions with non-overlapping bed regions
+#'
+#' Given a table of positions and a table of bed regions, find the positions that
+#' are contained in the regions, and conversely the regions that overlap given positions.
+#' If positions and/or bed regions have classes, then find how many positions for each 
+#' class of positions are contained in each region or class of regions, and find how many regions for
+#' each class of regions contain each position or each class of positions.
+#' This function is restricted to only non-overlapping bed regions. For overlapping
+#' bed regions, use the more general function intersectPositionsAndBedRegions.
+#' 
+#' @param positions data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique
+#' @param bed_table data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param computeStats if FALSE, intersect stats will not be calculated and only the id maps mapping
+#' position ids to region ids and viceversa will be returned. This is meant to save compute time when
+#' intersectPositionsAndBedRegions_nonOverlapping is run inside intersectPositionsAndBedRegions.
+#' @return object with details intersection statistics
+#' @export
+intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
+                                                           bed_table,
+                                                           computeStats=TRUE){
+  # check column requirements
+  # check required columns
+  requiredcolumns <- c("chr","position","id")
+  if(!all(requiredcolumns %in% colnames(positions))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(positions))
+    message("[error intersectPositionsAndBedRegions_nonOverlapping] positions table missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  requiredcolumns <- c("chr","start","end","id")
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error intersectPositionsAndBedRegions_nonOverlapping] bed_table missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # check which chromosomes have overlap if any
+  overlapChroms <- checkBedRegionsOverlap(bed_table)
+  if(!is.null(overlapChroms)){
+    message("[error intersectPositionsAndBedRegions_nonOverlapping] regions should not overlap, ",
+            "you can break them down using the function breakDownOverlappingBedRegions, ",
+            "or you can run intersectPositionsAndBedRegions.")
+    return(NULL)
+  }
+  # need them to be ordered
+  positions <- sortPositions(positions)
+  bed_table <- sortBed(bed_table)
+  chroms <- sortChroms(union(positions$chr,bed_table$chr))
+  # add single class if missing
+  if(!("class" %in% colnames(positions))){
+    positions$class <- "anyPosition"
+  }
+  pclasses <- as.character(unique(positions$class))
+  if(!("class" %in% colnames(bed_table))){
+    bed_table$class <- "anyRegion"
+  }
+  rclasses <- as.character(unique(bed_table$class))
+  
+  # now if I want to annotated both positions and bed regions, I need to be
+  # able to add bed regions classes and ids to the positions table and
+  # positions ids and classes to the bed table. In the case of the bed table,
+  # more than one id of positions and more than one class are possible, so
+  # lists are a good idea. Use ids for quick access.
+  # perhaps I should do the classes at the end from the ids in one go.
+  
+  # index
+  positions$id <- as.character(positions$id)
+  bed_table$id <- as.character(bed_table$id)
+  rownames(positions) <- positions$id
+  rownames(bed_table) <- bed_table$id
+  
+  # annotation lists
+  idMapPositionsToRegions <- list()
+  idMapRegionsToPositions <- list()
+  
+  for (chrom in chroms) {
+    # chrom <- chroms[1]
+    positions_chrom <- positions[positions$chr==chrom,,drop=F]
+    regions_chrom <- bed_table[bed_table$chr==chrom,,drop=F]
+    # if there are no positions there is nothing to do in this chromosome
+    if(nrow(positions_chrom)>0){
+      # if there are no regions in this chromosome, all the positions are
+      # classified as noMatch
+      if(nrow(regions_chrom)>0){
+        # in this chromosome we have both regions and mutations, ordered by position
+        # now we start the core algorithm
+        currentPosition <- 1
+        currentRegion <- 1
+        while (currentPosition<=nrow(positions_chrom) | currentRegion<=nrow(regions_chrom)) {
+          # first of all, check that we have not finished with the positions or the regions
+          if(currentPosition>nrow(positions_chrom)){
+            # no more positions to check, so all remaining regions must be empty
+            # just skip to the end
+            currentRegion <- nrow(regions_chrom) + 1
+          }else if(currentRegion>nrow(regions_chrom)){
+            # no more regions to check, so if there are any other positions then they 
+            # should be classified as noMatch
+            if(currentPosition<=nrow(positions_chrom)){
+              nPositionsRemaining <- nrow(positions_chrom) - currentPosition + 1
+              # skip to the end
+              currentPosition <- nrow(positions_chrom) + 1
+            }
+          }else{
+            # we still have positions and regions left to check
+            if(positions_chrom[currentPosition,"position"]<regions_chrom[currentRegion,"start"]){
+              # the current position happens before the start of the current region, so it is noMatch
+              # move one position forward
+              currentPosition <- currentPosition + 1
+            }else if(positions_chrom[currentPosition,"position"]<=regions_chrom[currentRegion,"end"]){
+              # if you get here, the current position is after start, but within the current region
+              # add it to the class of the region
+              # annotate the position and the region
+              idMapPositionsToRegions[[positions_chrom[currentPosition,"id"]]] <- c(idMapPositionsToRegions[[positions_chrom[currentPosition,"id"]]],regions_chrom[currentRegion,"id"])
+              idMapRegionsToPositions[[regions_chrom[currentRegion,"id"]]] <- c(idMapRegionsToPositions[[regions_chrom[currentRegion,"id"]]],positions_chrom[currentPosition,"id"])
+              # move one position forward
+              currentPosition <- currentPosition + 1
+            }else{
+              # if you get here, then the current position must be after the end of the current region
+              # which means we are done with this region and we move forward
+              currentRegion <- currentRegion + 1
+            }
+          }
+        }
+      }
+      
+    }
+  }
+  # Annotation of positions and regions
+  
+  # 1. how many positions are associated with each region? must be 0 or n 
+  # 2. how many positions for each class are associated with each region? either one or multiple classes or a noPositions class
+  # 3. how many positions for each class are associated with each region class or with the noMatch class
+  # 4. how many positions are associated with each region class or with the noMatch class (aggregate of 3.) 
+  # 5. how many regions are associated with each position? must be 0 or 1 because of no overlapping regions
+  # 6. how many regions for each class are associated with each position? either one class or a noMatch class
+  # 7. how many regions for each class are associated with each position class or with the noPositions class
+  # 8. how many regions are associated with each position class or with the noPositions class (aggregate of 7.)
+  
+  if(computeStats){
+    res_stats <- intersectionStatsComplete(idMap1to2 = idMapPositionsToRegions,
+                                           idMap2to1 = idMapRegionsToPositions,
+                                           idclassmap1 = positions,
+                                           idclassmap2 = bed_table)
+  }
+  
+
+  
+  # collect results in the return object
+  returnObj <- list()
+  
+  returnObj$idMapPositionsToRegions <- idMapPositionsToRegions
+  returnObj$idMapRegionsToPositions <- idMapRegionsToPositions
+
+  if(computeStats){
+    returnObj$annotatedPositions <- res_stats$idclassmap1_updated
+    returnObj$annotatedBedRegions <- res_stats$idclassmap2_updated
+    
+    returnObj$totalPostionsInAnyRegion <- res_stats$totalId1matchingAnyId2
+    returnObj$totalRegionsAtAnyPosition <- res_stats$totalId2matchingAnyId1
+    
+    returnObj$countsTable_positionsInEachRegion <- res_stats$countsTable_classes1_in_id2
+    returnObj$countsTable_positionsInEachRegion_total <- res_stats$countsTable_total1_in_id2
+    returnObj$countsTable_positionsInRegionClasses <- res_stats$countsTable_classes1_in_classes2
+    returnObj$countsTable_positionsInRegionClasses_total <- res_stats$countsTable_total1_in_classes2
+    
+    returnObj$countsTable_regionsAtEachPosition <- res_stats$countsTable_classes2_in_id1
+    returnObj$countsTable_regionsAtEachPosition_total <- res_stats$countsTable_total2_in_id1
+    returnObj$countsTable_regionsAtPositionClasses <- res_stats$countsTable_classes2_in_classes1
+    returnObj$countsTable_regionsAtPositionClasses_total <- res_stats$countsTable_total2_in_classes1
+  }
+  return(returnObj)
+}
+
+#' Intersect positions with bed regions
+#'
+#' Given a table of positions and a table of bed regions, find the positions that
+#' are contained in the regions, and conversely the regions that overlap given positions.
+#' If positions and/or bed regions have classes, then find how many positions for each 
+#' class of positions are contained in each region or class of regions, and find how many regions for
+#' each class of regions contain each position or each class of positions.
+#' This function allows for overlapping bed regions. In practice, if there are 
+#' overlapping bed regions, the regions in bed_table will be assigned to a minimum number of
+#' sets such that each set contains non-overlapping regions. The function intersectPositionsAndBedRegions_nonOverlapping
+#' will then be used on the non-overlapping sets separately, and the results merged.
+#' 
+#' @param positions data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique
+#' @param bed_table data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique
+#' @return object with details intersection statistics
+#' @export
+intersectPositionsAndBedRegions <- function(positions,
+                                            bed_table){
+  # check column requirements
+  # check required columns
+  requiredcolumns <- c("chr","position","id")
+  if(!all(requiredcolumns %in% colnames(positions))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(positions))
+    message("[error intersectPositionsAndBedRegions] positions table missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  requiredcolumns <- c("chr","start","end","id")
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error intersectPositionsAndBedRegions] bed_table missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # check which chromosomes have overlap if any
+  overlapChroms <- checkBedRegionsOverlap(bed_table)
+  if(is.null(overlapChroms)){
+    # bed_regions are non-overlapping, we can just use the non-overlapping function
+    message("[info intersectPositionsAndBedRegions] bed_table regions are not overlapping: running intersectPositionsAndBedRegions_nonOverlapping")
+    return(intersectPositionsAndBedRegions_nonOverlapping(positions = positions,
+                                                          bed_table = bed_table))
+  }else{
+    # bed_regions are overlapping, we need to assign the regions to non-overlapping sets
+    message("[info intersectPositionsAndBedRegions] bed_table regions are overlapping: assigning regions to non-overlapping sets and running separately")
+    assignedSets <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table)
+    assignedSets <- reverseIdMap(assignedSets)
+    # index
+    rownames(bed_table) <- bed_table$id
+    # initialise id maps
+    idMapPositionsToRegions <- list()
+    idMapRegionsToPositions <- list()
+    # run the intersection for each set
+    for(i in 1:length(assignedSets)){
+      # i <- 1
+      message("[info intersectPositionsAndBedRegions] running intersection with non-overlapping set ",i," of ",length(assignedSets))
+      si <- names(assignedSets)[i]
+      ids <- assignedSets[[si]]
+      tmpres <- intersectPositionsAndBedRegions_nonOverlapping(positions = positions,
+                                                               bed_table = bed_table[ids,,drop=F],
+                                                               computeStats = FALSE)
+      idMapPositionsToRegions <- mergeIdMaps(idMap1 = idMapPositionsToRegions,
+                                             idMap2 = tmpres$idMapPositionsToRegions)
+      idMapRegionsToPositions <- mergeIdMaps(idMap1 = idMapRegionsToPositions,
+                                             idMap2 = tmpres$idMapRegionsToPositions)
+    }
+    
+    message("[info intersectPositionsAndBedRegions] calculating intersect stats")
+    # now just get the stats
+    res_stats <- intersectionStatsComplete(idMap1to2 = idMapPositionsToRegions,
+                                           idMap2to1 = idMapRegionsToPositions,
+                                           idclassmap1 = positions,
+                                           idclassmap2 = bed_table)
+    
+    # collect results in the return object
+    returnObj <- list()
+    
+    returnObj$idMapPositionsToRegions <- idMapPositionsToRegions
+    returnObj$idMapRegionsToPositions <- idMapRegionsToPositions
+
+    returnObj$annotatedPositions <- res_stats$idclassmap1_updated
+    returnObj$annotatedBedRegions <- res_stats$idclassmap2_updated
+    
+    returnObj$totalPostionsInAnyRegion <- res_stats$totalId1matchingAnyId2
+    returnObj$totalRegionsAtAnyPosition <- res_stats$totalId2matchingAnyId1
+    
+    returnObj$countsTable_positionsInEachRegion <- res_stats$countsTable_classes1_in_id2
+    returnObj$countsTable_positionsInEachRegion_total <- res_stats$countsTable_total1_in_id2
+    returnObj$countsTable_positionsInRegionClasses <- res_stats$countsTable_classes1_in_classes2
+    returnObj$countsTable_positionsInRegionClasses_total <- res_stats$countsTable_total1_in_classes2
+    
+    returnObj$countsTable_regionsAtEachPosition <- res_stats$countsTable_classes2_in_id1
+    returnObj$countsTable_regionsAtEachPosition_total <- res_stats$countsTable_total2_in_id1
+    returnObj$countsTable_regionsAtPositionClasses <- res_stats$countsTable_classes2_in_classes1
+    returnObj$countsTable_regionsAtPositionClasses_total <- res_stats$countsTable_total2_in_classes1
+    
+    return(returnObj)
+  }
 }
 

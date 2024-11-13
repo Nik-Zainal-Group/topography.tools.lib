@@ -25,6 +25,7 @@ devtools::test()
 
 #some individual tests
 devtools::test(pkg = ".",filter = "base")
+devtools::test(pkg = ".",filter = "intersections")
 
 
 
