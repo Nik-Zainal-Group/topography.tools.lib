@@ -139,3 +139,69 @@ test_that("test intersectPositionsAndBedRegions with classes", {
   expect_equal(res_obj$countsTable_regionsAtPositionClasses,expected_classes2)
   
 })
+
+test_that("test intersectBed_nonOverlapping without classes", {
+  bed_table1 <- data.frame(chr = c(1,1,1),
+                           start = c(100,300,500),
+                           end = c(200,400,600),
+                           id=paste0("x",c(1,2,3)),
+                           stringsAsFactors = F)
+  bed_table2 <- data.frame(chr = c(1,1,1,1),
+                           start = c(250,380,550,650),
+                           end = c(320,520,580,700),
+                           id=paste0("y",c(1,2,3,4)),
+                           stringsAsFactors = F)
+  
+  expected_classes1 <- data.frame(row.names = "anyRegion",
+                                  anyRegion=2,
+                                  noMatch=1,
+                                  stringsAsFactors = F)
+  expected_classes2 <- data.frame(row.names = "anyRegion",
+                                  anyRegion=3,
+                                  noMatch=1,
+                                  stringsAsFactors = F)
+  
+  res_obj <- intersectBed_nonOverlapping(bed_table1 = bed_table1,
+                                         bed_table2 = bed_table2)
+  
+  expect_equal(res_obj$totalRegions1overlappingAnyRegion2,2)
+  expect_equal(res_obj$totalRegions2overlappingAnyRegion1,3)
+  expect_equal(res_obj$countsTable_regions1overlappingRegion2classes,expected_classes1)
+  expect_equal(res_obj$countsTable_regions2overlappingRegion1classes,expected_classes2)
+  
+})
+
+test_that("test intersectBed_nonOverlapping with classes", {
+  bed_table1 <- data.frame(chr = c(1,1,1),
+                           start = c(100,300,500),
+                           end = c(200,400,600),
+                           id=paste0("x",c(1,2,3)),
+                           class=c("A","B","B"),
+                           stringsAsFactors = F)
+  bed_table2 <- data.frame(chr = c(1,1,1,1),
+                           start = c(250,380,550,650),
+                           end = c(320,520,580,700),
+                           id=paste0("y",c(1,2,3,4)),
+                           class=c("M","M","N","N"),
+                           stringsAsFactors = F)
+  
+  expected_classes1 <- data.frame(row.names = c("A","B"),
+                                  M=c(0,2),
+                                  N=c(0,1),
+                                  noMatch=c(1,0),
+                                  stringsAsFactors = F)
+  expected_classes2 <- data.frame(row.names = c("M","N"),
+                                  A=c(0,0),
+                                  B=c(2,1),
+                                  noMatch=c(0,1),
+                                  stringsAsFactors = F)
+  
+  res_obj <- intersectBed_nonOverlapping(bed_table1 = bed_table1,
+                                         bed_table2 = bed_table2)
+  
+  expect_equal(res_obj$totalRegions1overlappingAnyRegion2,2)
+  expect_equal(res_obj$totalRegions2overlappingAnyRegion1,3)
+  expect_equal(res_obj$countsTable_regions1overlappingRegion2classes,expected_classes1)
+  expect_equal(res_obj$countsTable_regions2overlappingRegion1classes,expected_classes2)
+  
+})

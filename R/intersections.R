@@ -484,3 +484,355 @@ intersectPositionsAndBedRegions <- function(positions,
   }
 }
 
+
+
+#' Intersect two sets of non-overlapping bed regions
+#'
+#' Given two tables of bed regions, find the regions from the first table that
+#' overlap the regions in the second table, and conversely the regions in the second
+#' table that overlap the regions in the first table.
+#' If the regions have classes, then find how many regions in the first table for each 
+#' class of regions are contained in each region or class of regions in the second table,
+#' and find how many regions in the second table for each class of regions contain each
+#' region or class of regions in the second table.
+#' This function is restricted to only non-overlapping bed regions. For overlapping
+#' bed regions, use the more general function intersectBed.
+#' 
+#' @param bed_table1 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param bed_table2 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param computeStats if FALSE, intersect stats will not be calculated and only the id maps mapping
+#' position ids to region ids and viceversa will be returned. This is meant to save compute time when
+#' intersectBed_nonOverlapping is run inside intersectBed.
+#' @return object with details intersection statistics
+#' @export
+intersectBed_nonOverlapping <- function(bed_table1,
+                                        bed_table2,
+                                        computeStats = TRUE){
+  
+  requiredcolumns <- c("chr","start","end","id")
+  if(!all(requiredcolumns %in% colnames(bed_table1))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error intersectBed_nonOverlapping] bed_table1 missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  if(!all(requiredcolumns %in% colnames(bed_table2))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error intersectBed_nonOverlapping] bed_table2 missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }  
+  
+  # make sure id is character
+  bed_table1$id <- as.character(bed_table1$id)
+  bed_table2$id <- as.character(bed_table2$id)
+  
+  if (nrow(bed_table1)==0 & nrow(bed_table2)==0){
+    message("[info intersectBed_nonOverlapping] None of the input bed_table contains regions.")
+    com_table <- data.frame(chr=character(),
+                            start=numeric(),
+                            end=numeric(),
+                            bedtable=character(),
+                            segment1=numeric(),
+                            segment2=numeric(),
+                            stringsAsFactors = F)
+  }else if (nrow(bed_table1)==0){
+    message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions, so they are all private.")
+    com_table <- data.frame(chr=bed_table2$chr,
+                            start=bed_table2$start,
+                            end=bed_table2$end,
+                            bedtable="2",
+                            segment1=rep(NA,nrow(bed_table2)),
+                            segment2=bed_table2$id,
+                            stringsAsFactors = F)
+  }else if (nrow(bed_table2)==0){
+    message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions, so they are all private.")
+    com_table <- data.frame(chr=bed_table1$chr,
+                            start=bed_table1$start,
+                            end=bed_table1$end,
+                            bedtable="1",
+                            segment1=bed_table1$id,
+                            segment2=rep(NA,nrow(bed_table1)),
+                            stringsAsFactors = F)
+  }else{
+    # I need to check that there are no overlaps
+    overlapChroms1 <- checkBedRegionsOverlap(bed_table = bed_table1)
+    if(!is.null(overlapChroms1)){
+      message("[error intersectBed_nonOverlapping] regions in bed_table1 should not overlap, ",
+              "you can break them down using the function breakDownOverlappingBedRegions.")
+      return(NULL)
+    }
+    overlapChroms2 <- checkBedRegionsOverlap(bed_table = bed_table2)
+    if(!is.null(overlapChroms2)){
+      message("[error intersectBed_nonOverlapping] regions in bed_table2 should not overlap, ",
+              "you can break them down using the function breakDownOverlappingBedRegions.")
+      return(NULL)
+    }
+    
+    bed_table1$segmentid <- bed_table1$id
+    bed_table2$segmentid <- bed_table2$id
+    
+    # then sort
+    bed_table1 <- sortBed(bed_table = bed_table1)
+    bed_table2 <- sortBed(bed_table = bed_table2)
+    
+    # initialise
+    com_table <- NULL
+    # need to check overlaps, one chromosome at a time
+    chroms1 <- unique(bed_table1$chr)
+    chroms2 <- unique(bed_table2$chr)
+    chroms_all <- union(chroms1,chroms2)
+    chroms_all <- sortChroms(chroms = chroms_all)
+    for(chrom in chroms_all){
+      # chrom <- "1"
+      chrom_regions1 <- bed_table1[bed_table1$chr==chrom,,drop=F]
+      chrom_regions2 <- bed_table2[bed_table2$chr==chrom,,drop=F]
+      if (nrow(chrom_regions1)==0 & nrow(chrom_regions2)==0){
+        # nothing to add
+        message("[info intersectBed_nonOverlapping] No regions in chromosome ",chrom)
+      }else if (nrow(chrom_regions1)==0){
+        message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions in chromosome ",chrom)
+        com_table <- rbind(com_table,
+                           data.frame(chr=chrom_regions2$chr,
+                                      start=chrom_regions2$start,
+                                      end=chrom_regions2$end,
+                                      bedtable="2",
+                                      segment1=rep(NA,nrow(chrom_regions2)),
+                                      segment2=chrom_regions2$segmentid,
+                                      stringsAsFactors = F))
+      }else if (nrow(chrom_regions2)==0){
+        message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions in chromosome ",chrom)
+        com_table <- rbind(com_table,
+                           data.frame(chr=chrom_regions1$chr,
+                                      start=chrom_regions1$start,
+                                      end=chrom_regions1$end,
+                                      bedtable="1",
+                                      segment1=chrom_regions1$segmentid,
+                                      segment2=rep(NA,nrow(chrom_regions1)),
+                                      stringsAsFactors = F))
+      }else{
+        
+        chrom_com_table <- NULL
+        
+        iter1 <- 1
+        iter2 <- 1
+        currentrow1 <- chrom_regions1[iter1,,drop=F]
+        currentrow2 <- chrom_regions2[iter2,,drop=F]
+        while (iter1<=nrow(chrom_regions1) & iter2<=nrow(chrom_regions2)) {
+          overlapping <- ! (currentrow1$end < currentrow2$start | currentrow1$start > currentrow2$end)
+          if(overlapping){
+            startdiff <- currentrow1$start - currentrow2$start
+            enddiff <- currentrow1$end - currentrow2$end
+            sharedid1 <- currentrow1$segmentid
+            sharedid2 <- currentrow2$segmentid
+            if(startdiff!=0){
+              # need to make a private segment
+              if(startdiff>0){
+                # seg2 starts first
+                sharedstart <- currentrow1$start
+                newrow <- data.frame(chr=chrom,
+                                     start=currentrow2$start,
+                                     end=sharedstart-1,
+                                     bedtable="2",
+                                     segment1=NA,
+                                     segment2=currentrow2$segmentid,
+                                     stringsAsFactors = F)
+              }else{
+                # seg1 starts first
+                sharedstart <- currentrow2$start
+                newrow <- data.frame(chr=chrom,
+                                     start=currentrow1$start,
+                                     end=sharedstart-1,
+                                     bedtable="1",
+                                     segment1=currentrow1$segmentid,
+                                     segment2=NA,
+                                     stringsAsFactors = F)
+              }
+              chrom_com_table <- rbind(chrom_com_table,newrow)
+            }else{
+              sharedstart <- currentrow1$start
+            }
+            
+            leftoverSegment <- NULL
+            if(enddiff!=0){
+              # need to make a private segment
+              if(enddiff>0){
+                # seg2 ends first
+                sharedend <- currentrow2$end
+                currentrow1 <- data.frame(chr=chrom,
+                                          start=sharedend+1,
+                                          end=currentrow1$end,
+                                          segmentid=currentrow1$segmentid,
+                                          stringsAsFactors = F)
+                iter2 <- iter2+1
+                if(iter2<=nrow(chrom_regions2)) {
+                  currentrow2 <- chrom_regions2[iter2,,drop=F]
+                }else{
+                  # there are no more rows in table 2, but there is a leftover
+                  # segment for the current row in table 1
+                  leftoverSegment <- data.frame(chr=chrom,
+                                                start=currentrow1$start,
+                                                end=currentrow1$end,
+                                                bedtable="1",
+                                                segment1=currentrow1$segmentid,
+                                                segment2=NA,
+                                                stringsAsFactors = F)
+                  iter1 <- iter1+1
+                }
+              }else{
+                # seg1 ends first
+                sharedend <- currentrow1$end
+                currentrow2 <- data.frame(chr=chrom,
+                                          start=sharedend+1,
+                                          end=currentrow2$end,
+                                          segmentid=currentrow2$segmentid,
+                                          stringsAsFactors = F)
+                iter1 <- iter1+1
+                if(iter1<=nrow(chrom_regions1)) {
+                  currentrow1 <- chrom_regions1[iter1,,drop=F]
+                }else{
+                  # there are no more rows in table 1, but there is a leftover
+                  # segment for the current row in table 2
+                  leftoverSegment <- data.frame(chr=chrom,
+                                                start=currentrow2$start,
+                                                end=currentrow2$end,
+                                                bedtable="2",
+                                                segment1=NA,
+                                                segment2=currentrow2$segmentid,
+                                                stringsAsFactors = F)
+                  iter2 <- iter2+1
+                }
+              }
+            }else{
+              sharedend <- currentrow1$end
+              iter1 <- iter1+1
+              if(iter1<=nrow(chrom_regions1)) currentrow1 <- chrom_regions1[iter1,,drop=F]
+              iter2 <- iter2+1
+              if(iter2<=nrow(chrom_regions2)) currentrow2 <- chrom_regions2[iter2,,drop=F]
+            }
+            newrow <- data.frame(chr=chrom,
+                                 start=sharedstart,
+                                 end=sharedend,
+                                 bedtable="shared",
+                                 segment1=sharedid1,
+                                 segment2=sharedid2,
+                                 stringsAsFactors = F)
+            chrom_com_table <- rbind(chrom_com_table,newrow)
+            if(!is.null(leftoverSegment)) chrom_com_table <- rbind(chrom_com_table,leftoverSegment)
+          }else{
+            # there is no overlapping between these two segments
+            # add the one that comes first
+            startdiff <- currentrow1$start - currentrow2$start
+            if(startdiff>0){
+              # add seg2
+              newrow <- data.frame(chr=chrom,
+                                   start=currentrow2$start,
+                                   end=currentrow2$end,
+                                   bedtable="2",
+                                   segment1=NA,
+                                   segment2=currentrow2$segmentid,
+                                   stringsAsFactors = F)
+              chrom_com_table <- rbind(chrom_com_table,newrow)
+              iter2 <- iter2+1
+              if(iter2<=nrow(chrom_regions2)) currentrow2 <- chrom_regions2[iter2,,drop=F]
+            }else{
+              # add seg1
+              newrow <- data.frame(chr=chrom,
+                                   start=currentrow1$start,
+                                   end=currentrow1$end,
+                                   bedtable="1",
+                                   segment1=currentrow1$segmentid,
+                                   segment2=NA,
+                                   stringsAsFactors = F)
+              chrom_com_table <- rbind(chrom_com_table,newrow)
+              iter1 <- iter1+1
+              if(iter1<=nrow(chrom_regions1)) currentrow1 <- chrom_regions1[iter1,,drop=F]
+            }
+          }
+          
+          # now it may be that either one or both chrom regions are exhausted
+          # if iter1>nrow(chrom_regions1) & iter2>nrow(chrom_regions2) there is nothing to do here
+          # if iter1<=nrow(chrom_regions1) & iter2<=nrow(chrom_regions2) there is nothing to do here
+          # if iter1>nrow(chrom_regions1) & iter2<=nrow(chrom_regions2) then add all remaining chrom_regions2
+          # if iter1<=nrow(chrom_regions1) & iter2>nrow(chrom_regions2) then add all remaining chrom_regions1
+          if(iter1>nrow(chrom_regions1) & iter2<=nrow(chrom_regions2)){
+            newrows <- data.frame(chr=chrom_regions2$chr[iter2:nrow(chrom_regions2)],
+                                  start=chrom_regions2$start[iter2:nrow(chrom_regions2)],
+                                  end=chrom_regions2$end[iter2:nrow(chrom_regions2)],
+                                  bedtable="2",
+                                  segment1=rep(NA,length(iter2:nrow(chrom_regions2))),
+                                  segment2=chrom_regions2$segmentid[iter2:nrow(chrom_regions2)],
+                                  stringsAsFactors = F)
+            chrom_com_table <- rbind(chrom_com_table,newrows)
+          }else if(iter1<=nrow(chrom_regions1) & iter2>nrow(chrom_regions2)){
+            newrows <- data.frame(chr=chrom_regions1$chr[iter1:nrow(chrom_regions1)],
+                                  start=chrom_regions1$start[iter1:nrow(chrom_regions1)],
+                                  end=chrom_regions1$end[iter1:nrow(chrom_regions1)],
+                                  bedtable="1",
+                                  segment1=chrom_regions1$segmentid[iter1:nrow(chrom_regions1)],
+                                  segment2=rep(NA,length(iter1:nrow(chrom_regions1))),
+                                  stringsAsFactors = F)
+            chrom_com_table <- rbind(chrom_com_table,newrows)
+          }
+          
+        }
+        com_table <- rbind(com_table,chrom_com_table)
+      }
+    }
+  }
+  
+  # add single class if missing
+  if(!("class" %in% colnames(bed_table1))){
+    bed_table1$class <- "anyRegion"
+  }
+  if(!("class" %in% colnames(bed_table2))){
+    bed_table2$class <- "anyRegion"
+  }
+  
+  # annotation lists
+  idMapRegions1ToRegions2 <- list()
+  idMapRegions2ToRegions1 <- list()
+  
+  sharedOnly <- com_table[com_table$bedtable=="shared",,drop=F]
+  if(nrow(sharedOnly)>0){
+    for(i in 1:nrow(sharedOnly)){
+      idMapRegions1ToRegions2[[sharedOnly$segment1[i]]] <- c(idMapRegions1ToRegions2[[sharedOnly$segment1[i]]],sharedOnly$segment2[i])
+      idMapRegions2ToRegions1[[sharedOnly$segment2[i]]] <- c(idMapRegions2ToRegions1[[sharedOnly$segment2[i]]],sharedOnly$segment1[i])
+    }
+  }
+  
+  if(computeStats){
+    res_stats <- intersectionStatsComplete(idMap1to2 = idMapRegions1ToRegions2,
+                                           idMap2to1 = idMapRegions2ToRegions1,
+                                           idclassmap1 = bed_table1,
+                                           idclassmap2 = bed_table2)
+  }
+  
+  # return object
+  returnObj <- list()
+  returnObj$intersectionTable <- com_table
+  
+  returnObj$idMapRegions1ToRegions2 <- idMapRegions1ToRegions2
+  returnObj$idMapRegions1ToRegions2 <- idMapRegions1ToRegions2
+  
+  if(computeStats){
+    returnObj$annotatedBedRegions1 <- res_stats$idclassmap1_updated
+    returnObj$annotatedBedRegions2 <- res_stats$idclassmap2_updated
+    
+    returnObj$totalRegions1overlappingAnyRegion2 <- res_stats$totalId1matchingAnyId2
+    returnObj$totalRegions2overlappingAnyRegion1 <- res_stats$totalId2matchingAnyId1
+    
+    returnObj$countsTable_regions1overlappingEachRegion2 <- res_stats$countsTable_classes1_in_id2
+    returnObj$countsTable_regions1overlappingEachRegion2_total <- res_stats$countsTable_total1_in_id2
+    returnObj$countsTable_regions1overlappingRegion2classes <- res_stats$countsTable_classes1_in_classes2
+    returnObj$countsTable_regions1overlappingRegion2classes_total <- res_stats$countsTable_total1_in_classes2
+    
+    returnObj$countsTable_regions2overlappingEachRegion1 <- res_stats$countsTable_classes2_in_id1
+    returnObj$countsTable_regions2overlappingEachRegion1_total <- res_stats$countsTable_total2_in_id1
+    returnObj$countsTable_regions2overlappingRegion1classes <- res_stats$countsTable_classes2_in_classes1
+    returnObj$countsTable_regions2overlappingRegion1classes_total <- res_stats$countsTable_total2_in_classes1
+  }
+  
+  return(returnObj)
+}
+
+
+
