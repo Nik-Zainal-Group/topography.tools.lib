@@ -14,9 +14,13 @@ devtools::install()
 
 genetable_hg19 <- read.table("data/genes/Hg19_Gene_List_withIDs.bed",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
 genetable_hg38 <- read.table("data/genes/Hg38_Gene_List_withIDs.bed",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
+samplingRegions_hg19 <- read.table("data/sampling/mappableAndNotBlacklistedRegions_hg19.tsv",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
+samplingRegions_hg38 <- read.table("data/sampling/mappableAndNotBlacklistedRegions_hg38.tsv",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
 
 usethis::use_data(genetable_hg19,
                   genetable_hg38,
+                  samplingRegions_hg19,
+                  samplingRegions_hg38,
                   internal = TRUE,
                   overwrite = TRUE)
 
@@ -26,6 +30,8 @@ devtools::test()
 #some individual tests
 devtools::test(pkg = ".",filter = "base")
 devtools::test(pkg = ".",filter = "intersections")
+devtools::test(pkg = ".",filter = "annotations")
+devtools::test(pkg = ".",filter = "sampling")
 
 
 
