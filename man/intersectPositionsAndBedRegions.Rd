@@ -9,7 +9,7 @@ intersectPositionsAndBedRegions(positions, bed_table)
 \arguments{
 \item{positions}{data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique}
 
-\item{bed_table}{data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique}
+\item{bed_table}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique}
 }
 \value{
 object with details intersection statistics

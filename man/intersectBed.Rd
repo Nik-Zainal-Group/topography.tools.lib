@@ -7,9 +7,9 @@
 intersectBed(bed_table1, bed_table2)
 }
 \arguments{
-\item{bed_table1}{data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.}
+\item{bed_table1}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.}
 
-\item{bed_table2}{data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.}
+\item{bed_table2}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.}
 }
 \value{
 object with details intersection statistics

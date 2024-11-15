@@ -410,7 +410,7 @@ assignBedRegionsToNonOverlappingSets <- function(bed_table,
               }
             }
             levelAssignmentList[[as.character(id)]] <- lane
-            
+            assignedIds <- c(assignedIds,as.character(id))
           }
         }
       }

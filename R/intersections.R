@@ -225,7 +225,7 @@ mergeIdMaps <- function(idMap1,
 #' bed regions, use the more general function intersectPositionsAndBedRegions.
 #' 
 #' @param positions data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique
-#' @param bed_table data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param bed_table data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
 #' @param computeStats if FALSE, intersect stats will not be calculated and only the id maps mapping
 #' position ids to region ids and viceversa will be returned. This is meant to save compute time when
 #' intersectPositionsAndBedRegions_nonOverlapping is run inside intersectPositionsAndBedRegions.
@@ -399,7 +399,7 @@ intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
 #' will then be used on the non-overlapping sets separately, and the results merged.
 #' 
 #' @param positions data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique
-#' @param bed_table data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique
+#' @param bed_table data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique
 #' @return object with details intersection statistics
 #' @export
 intersectPositionsAndBedRegions <- function(positions,
@@ -498,8 +498,8 @@ intersectPositionsAndBedRegions <- function(positions,
 #' This function is restricted to only non-overlapping bed regions. For overlapping
 #' bed regions, use the more general function intersectBed.
 #' 
-#' @param bed_table1 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
-#' @param bed_table2 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param bed_table1 data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param bed_table2 data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
 #' @param computeStats if FALSE, intersect stats will not be calculated and only the id maps mapping
 #' position ids to region ids and viceversa will be returned. This is meant to save compute time when
 #' intersectBed_nonOverlapping is run inside intersectBed.
@@ -853,8 +853,8 @@ intersectBed_nonOverlapping <- function(bed_table1,
 #' and find how many regions in the second table for each class of regions contain each
 #' region or class of regions in the second table.
 #' 
-#' @param bed_table1 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
-#' @param bed_table2 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param bed_table1 data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.
+#' @param bed_table2 data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.
 #' @return object with details intersection statistics
 #' @export
 intersectBed <- function(bed_table1,
@@ -885,9 +885,11 @@ intersectBed <- function(bed_table1,
     rownames(bed_table1) <- bed_table1$id
     rownames(bed_table2) <- bed_table2$id
     
+    message("[info intersectBed] Assigning bed_table1 regions to non-overlapping sets")
     assignedSets1 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table1)
     assignedSets1 <- reverseIdMap(assignedSets1)
     
+    message("[info intersectBed] Assigning bed_table2 regions to non-overlapping sets")
     assignedSets2 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table2)
     assignedSets2 <- reverseIdMap(assignedSets2)
     

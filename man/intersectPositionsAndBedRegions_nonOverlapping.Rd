@@ -13,7 +13,7 @@ intersectPositionsAndBedRegions_nonOverlapping(
 \arguments{
 \item{positions}{data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique}
 
-\item{bed_table}{data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.}
+\item{bed_table}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique. Regions cannot overlap.}
 
 \item{computeStats}{if FALSE, intersect stats will not be calculated and only the id maps mapping
 position ids to region ids and viceversa will be returned. This is meant to save compute time when
