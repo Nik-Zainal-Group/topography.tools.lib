@@ -557,13 +557,15 @@ intersectBed_nonOverlapping <- function(bed_table1,
     overlapChroms1 <- checkBedRegionsOverlap(bed_table = bed_table1)
     if(!is.null(overlapChroms1)){
       message("[error intersectBed_nonOverlapping] regions in bed_table1 should not overlap, ",
-              "you can break them down using the function breakDownOverlappingBedRegions.")
+              "you can break them down using the function breakDownOverlappingBedRegions, ",
+              "or you can run intersectBed instead.")
       return(NULL)
     }
     overlapChroms2 <- checkBedRegionsOverlap(bed_table = bed_table2)
     if(!is.null(overlapChroms2)){
       message("[error intersectBed_nonOverlapping] regions in bed_table2 should not overlap, ",
-              "you can break them down using the function breakDownOverlappingBedRegions.")
+              "you can break them down using the function breakDownOverlappingBedRegions, ",
+              "or you can run intersectBed instead.")
       return(NULL)
     }
     
@@ -800,10 +802,15 @@ intersectBed_nonOverlapping <- function(bed_table1,
   }
   
   if(computeStats){
-    res_stats <- intersectionStatsComplete(idMap1to2 = idMapRegions1ToRegions2,
-                                           idMap2to1 = idMapRegions2ToRegions1,
-                                           idclassmap1 = bed_table1,
-                                           idclassmap2 = bed_table2)
+    if(nrow(bed_table1)>0 & nrow(bed_table2)>0){
+      res_stats <- intersectionStatsComplete(idMap1to2 = idMapRegions1ToRegions2,
+                                             idMap2to1 = idMapRegions2ToRegions1,
+                                             idclassmap1 = bed_table1,
+                                             idclassmap2 = bed_table2)
+    }else{
+      message("[warning intersectBed_nonOverlapping] cannot calculate intersection stats because bed_table1 and/or bed_table2 are empty")
+    }
+
   }
   
   # return object
@@ -811,9 +818,9 @@ intersectBed_nonOverlapping <- function(bed_table1,
   returnObj$intersectionTable <- com_table
   
   returnObj$idMapRegions1ToRegions2 <- idMapRegions1ToRegions2
-  returnObj$idMapRegions1ToRegions2 <- idMapRegions1ToRegions2
+  returnObj$idMapRegions2ToRegions1 <- idMapRegions2ToRegions1
   
-  if(computeStats){
+  if(computeStats & nrow(bed_table1)>0 & nrow(bed_table2)>0){
     returnObj$annotatedBedRegions1 <- res_stats$idclassmap1_updated
     returnObj$annotatedBedRegions2 <- res_stats$idclassmap2_updated
     
@@ -836,3 +843,107 @@ intersectBed_nonOverlapping <- function(bed_table1,
 
 
 
+#' Intersect two sets of bed regions
+#'
+#' Given two tables of bed regions, find the regions from the first table that
+#' overlap the regions in the second table, and conversely the regions in the second
+#' table that overlap the regions in the first table.
+#' If the regions have classes, then find how many regions in the first table for each 
+#' class of regions are contained in each region or class of regions in the second table,
+#' and find how many regions in the second table for each class of regions contain each
+#' region or class of regions in the second table.
+#' 
+#' @param bed_table1 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @param bed_table2 data frame containing bed regions, with required columns chr, start, stop, id and optionally class. Value in the id column must be unique. Regions cannot overlap.
+#' @return object with details intersection statistics
+#' @export
+intersectBed <- function(bed_table1,
+                         bed_table2){
+  
+  requiredcolumns <- c("chr","start","end","id")
+  if(!all(requiredcolumns %in% colnames(bed_table1))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error intersectBed] bed_table1 missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  if(!all(requiredcolumns %in% colnames(bed_table2))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error intersectBed] bed_table2 missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # annotation lists
+  idMapRegions1ToRegions2 <- list()
+  idMapRegions2ToRegions1 <- list()
+  
+  if(nrow(bed_table1)>0 & nrow(bed_table2)>0){
+    # make sure id is character
+    bed_table1$id <- as.character(bed_table1$id)
+    bed_table2$id <- as.character(bed_table2$id)
+    
+    # index
+    rownames(bed_table1) <- bed_table1$id
+    rownames(bed_table2) <- bed_table2$id
+    
+    assignedSets1 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table1)
+    assignedSets1 <- reverseIdMap(assignedSets1)
+    
+    assignedSets2 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table2)
+    assignedSets2 <- reverseIdMap(assignedSets2)
+    
+    # run the intersection for each set
+    for(i in 1:length(assignedSets1)){
+      # i <- 1
+      si <- names(assignedSets1)[i]
+      ids1 <- assignedSets1[[si]]
+      for(j in 1:length(assignedSets2)){
+        # j <- 1
+        message("[info intersectBed] running intersection between non-overlapping set ",i,
+                " of ",length(assignedSets1)," from bed_table1 and non-overlapping set ",j,
+                " of ",length(assignedSets2)," from bed_table2")
+        sj <- names(assignedSets2)[j]
+        ids2 <- assignedSets2[[sj]]
+        tmpres <- intersectBed_nonOverlapping(bed_table1 = bed_table1[ids1,,drop=F],
+                                              bed_table2 = bed_table2[ids2,,drop=F],
+                                              computeStats = FALSE)
+        idMapRegions1ToRegions2 <- mergeIdMaps(idMap1 = idMapRegions1ToRegions2,
+                                               idMap2 = tmpres$idMapRegions1ToRegions2)
+        idMapRegions2ToRegions1 <- mergeIdMaps(idMap1 = idMapRegions2ToRegions1,
+                                               idMap2 = tmpres$idMapRegions2ToRegions1)
+      }
+    }
+    
+    res_stats <- intersectionStatsComplete(idMap1to2 = idMapRegions1ToRegions2,
+                                           idMap2to1 = idMapRegions2ToRegions1,
+                                           idclassmap1 = bed_table1,
+                                           idclassmap2 = bed_table2)
+  }else{
+    message("[warning intersectBed] cannot calculate intersection stats because bed_table1 and/or bed_table2 are empty")
+  }
+  
+  # return object
+  returnObj <- list()
+  
+  returnObj$idMapRegions1ToRegions2 <- idMapRegions1ToRegions2
+  returnObj$idMapRegions2ToRegions1 <- idMapRegions2ToRegions1
+  
+  if(nrow(bed_table1)>0 & nrow(bed_table2)>0){
+    returnObj$annotatedBedRegions1 <- res_stats$idclassmap1_updated
+    returnObj$annotatedBedRegions2 <- res_stats$idclassmap2_updated
+    
+    returnObj$totalRegions1overlappingAnyRegion2 <- res_stats$totalId1matchingAnyId2
+    returnObj$totalRegions2overlappingAnyRegion1 <- res_stats$totalId2matchingAnyId1
+    
+    returnObj$countsTable_regions1overlappingEachRegion2 <- res_stats$countsTable_classes1_in_id2
+    returnObj$countsTable_regions1overlappingEachRegion2_total <- res_stats$countsTable_total1_in_id2
+    returnObj$countsTable_regions1overlappingRegion2classes <- res_stats$countsTable_classes1_in_classes2
+    returnObj$countsTable_regions1overlappingRegion2classes_total <- res_stats$countsTable_total1_in_classes2
+    
+    returnObj$countsTable_regions2overlappingEachRegion1 <- res_stats$countsTable_classes2_in_id1
+    returnObj$countsTable_regions2overlappingEachRegion1_total <- res_stats$countsTable_total2_in_id1
+    returnObj$countsTable_regions2overlappingRegion1classes <- res_stats$countsTable_classes2_in_classes1
+    returnObj$countsTable_regions2overlappingRegion1classes_total <- res_stats$countsTable_total2_in_classes1
+  }
+
+  return(returnObj)
+}
