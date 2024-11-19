@@ -9,7 +9,7 @@ annotateBedWithGenes(bed_table, proteinCodingOnly = TRUE, genomev = "hg19")
 \arguments{
 \item{bed_table}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.}
 
-\item{proteinCodingOnly}{if TRUE then annotated only protein coding genes}
+\item{proteinCodingOnly}{if TRUE then annotate only protein coding genes}
 
 \item{genomev}{genome version, hg19 or hg38}
 }

@@ -265,11 +265,11 @@ intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
   if(!("class" %in% colnames(positions))){
     positions$class <- "anyPosition"
   }
-  pclasses <- as.character(unique(positions$class))
+  # pclasses <- as.character(unique(positions$class))
   if(!("class" %in% colnames(bed_table))){
     bed_table$class <- "anyRegion"
   }
-  rclasses <- as.character(unique(bed_table$class))
+  # rclasses <- as.character(unique(bed_table$class))
   
   # now if I want to annotated both positions and bed regions, I need to be
   # able to add bed regions classes and ids to the positions table and
@@ -417,6 +417,14 @@ intersectPositionsAndBedRegions <- function(positions,
     missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
     message("[error intersectPositionsAndBedRegions] bed_table missing required columns: ",paste(missingcolumns,collapse = ", "))
     return(NULL)
+  }
+  
+  # add single class if missing
+  if(!("class" %in% colnames(positions))){
+    positions$class <- "anyPosition"
+  }
+  if(!("class" %in% colnames(bed_table))){
+    bed_table$class <- "anyRegion"
   }
   
   # check which chromosomes have overlap if any
@@ -884,6 +892,14 @@ intersectBed <- function(bed_table1,
     # index
     rownames(bed_table1) <- bed_table1$id
     rownames(bed_table2) <- bed_table2$id
+    
+    # add single class if missing
+    if(!("class" %in% colnames(bed_table1))){
+      bed_table1$class <- "anyRegion"
+    }
+    if(!("class" %in% colnames(bed_table2))){
+      bed_table2$class <- "anyRegion"
+    }
     
     message("[info intersectBed] Assigning bed_table1 regions to non-overlapping sets")
     assignedSets1 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table1)

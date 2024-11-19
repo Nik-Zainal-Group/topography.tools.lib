@@ -18,6 +18,7 @@ plotBedSignalRegion(
   highlightPositions = NULL,
   highlightPositionsColours = NULL,
   plotGenes = TRUE,
+  proteinCodingOnly = TRUE,
   genomev = "hg19",
   main = "",
   lwd = 1.5,
@@ -54,6 +55,8 @@ The names of the list need to match the names of the highlightRegions list}
 The names of the list need to match the names of the highlightPositions list}
 
 \item{plotGenes}{if TRUE the coding genes in the regions will be plotted on top}
+
+\item{proteinCodingOnly}{if TRUE then plot only protein coding genes}
 
 \item{genomev}{hg19 or hg38}
 

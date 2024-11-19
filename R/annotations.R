@@ -5,7 +5,7 @@
 #' Given a table of bed regions, annotate each regions with the genes that overlap them.
 #' 
 #' @param bed_table data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.
-#' @param proteinCodingOnly if TRUE then annotated only protein coding genes 
+#' @param proteinCodingOnly if TRUE then annotate only protein coding genes 
 #' @param genomev genome version, hg19 or hg38
 #' @return annotated bed_table
 #' @export

@@ -810,6 +810,7 @@ trimNfromBed <- function(bed_table,
 #' @param highlightPositionsColours highlightPositionsColours is a list of colours.
 #' The names of the list need to match the names of the highlightPositions list
 #' @param plotGenes if TRUE the coding genes in the regions will be plotted on top
+#' @param proteinCodingOnly if TRUE then plot only protein coding genes 
 #' @param genomev hg19 or hg38
 #' @param main title of the plot
 #' @param lwd line width of the plot
@@ -830,6 +831,7 @@ plotBedSignalRegion <- function(bed_table,
                                 highlightPositions=NULL,
                                 highlightPositionsColours=NULL,
                                 plotGenes=TRUE,
+                                proteinCodingOnly = TRUE,
                                 genomev="hg19",
                                 main="",
                                 lwd=1.5,
@@ -945,7 +947,7 @@ plotBedSignalRegion <- function(bed_table,
       return(NULL)
     }
     # only protein coding
-    genetable <- genetable[genetable$genetype=="protein_coding",,drop=F]
+    if(proteinCodingOnly) genetable <- genetable[genetable$genetype=="protein_coding",,drop=F]
     if(!startsWith(as.character(bed_table$chr[1]),prefix = "chr")) genetable$chr <- substr(genetable$chr,4,5)
     # select only the relevant part of the table
     genetable <- genetable[genetable$chr==pchr,,drop=F]
