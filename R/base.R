@@ -1351,3 +1351,55 @@ extendBedRegionsWithNoOverlap <- function(bed_table,
   return(tmp_bed_table)
 }
 
+
+
+#' Compute inter-region distance of a set of bed regions
+#'
+#' This function returns both the left and right IRD of each given region
+#' as well as the average IRD. Regions must be non-overlapping
+#' 
+#' @param bed_table data frame with required columns: chr, start, end 
+#' @return left, right and average inter-region distance
+#' @export
+getIRD <- function(bed_table){
+  # some checks
+  requiredcolumns_pos <- c("chr","start","end")
+  if(!all(requiredcolumns_pos %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns_pos,colnames(bed_table))
+    message("[error getIRD] missing required columns in bed_table: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # I need to check that there are no overlaps
+  overlapChroms <- checkBedRegionsOverlap(bed_table = bed_table)
+  if(!is.null(overlapChroms)){
+    message("[error getIRD] regions in bed_table should not overlap, ",
+            "you can break them down using the function breakDownOverlappingBedRegions.")
+    return(NULL)
+  }
+  
+  # compute the IRD, for each chromosome separately, sort first
+  bed_table <- sortBed(bed_table = bed_table)
+  chroms <- unique(bed_table$chr)
+  new_bed_table <- NULL
+  for(chrom in chroms){
+    # chrom <- chroms[1]
+    chr_table <- bed_table[bed_table$chr==chrom,,drop=F]
+    if(nrow(chr_table)>0){
+      # get ready
+      chr_table$leftIRD <- NA
+      chr_table$rightIRD <- NA
+      chr_table$aveIRD <- NA
+      # there is at least one row, so if it is only one row IRD=NA
+      # and just add to final table, otherwise we calculate the IRD and fill the table
+      if(nrow(chr_table)>1){
+        IRD <- chr_table$start[2:nrow(chr_table)] - chr_table$end[1:(nrow(chr_table)-1)]
+        chr_table[2:nrow(chr_table),"leftIRD"] <- IRD
+        chr_table[1:(nrow(chr_table)-1),"rightIRD"] <- IRD
+        chr_table[,"aveIRD"] <- apply(chr_table[,c("leftIRD","rightIRD")],1,mean,na.rm=T)
+      }
+      new_bed_table <- rbind(new_bed_table,chr_table)
+    }
+  }
+  return(new_bed_table)
+}

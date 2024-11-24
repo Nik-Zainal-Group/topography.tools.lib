@@ -254,3 +254,17 @@ test_that("test extendBedRegionsWithNoOverlap", {
   expect_equal(bed_table_extended,extended_expected)
 
 })
+
+test_that("test getIRD", {
+  
+  bed_table <- data.frame(chr=c(1,1,1,2),
+                          start=c(3000,15000,20001,10000),
+                          end=c(5000,20000,25000,20000),
+                          id=c(1,2,3,4),
+                          stringsAsFactors = F)
+  
+  res_ird <- getIRD(bed_table = bed_table)
+  
+  expect_equal(res_ird$aveIRD,c(10000,5000.5,1,NA))
+  
+})
