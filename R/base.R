@@ -789,10 +789,12 @@ trimNfromBed <- function(bed_table,
 }
 
 
-#' Remove N from bed table
+#' Plot signal of bed regions
 #'
-#' Given a table of bed regions and a reference genome, trim and split the bed
-#' bed regions to remove reference genome N positions.
+#' Given a table of bed regions with the signal column, plot the signal values
+#' across a given region. Signal for segments not included in the given bed regions
+#' will be set to zero. A second bed table can be specified, and its signal will be
+#' plotted along with the signal of the first bed table.
 #' 
 #' 
 #' @param bed_table data frame with required columns: chr, start, end, signal
@@ -1283,5 +1285,69 @@ plotBedSignalRegion <- function(bed_table,
   }
   if(!is.null(fileout)) dev.off()
   
+}
+
+
+#' Extend bed regions preserving no overlap
+#'
+#' Given a table of non-overlapping bed regions, extend the regions
+#' in both directions by a given length. If two regions are next to each
+#' other and are at a distance that is less than 2 times the extend length,
+#' then they will be both extended by half such distance so that they become
+#' adjacent regions. When extending at the beginning of a chromosome, 1 will be
+#' the minimum position.
+#' 
+#' 
+#' @param bed_table data frame with required columns: chr, start, end
+#' @param extended length in number of bases by which each region should be
+#' extended in both directions
+#' @return updated bed_table
+#' @export
+extendBedRegionsWithNoOverlap <- function(bed_table,
+                                          extended){
+  # check no overlap before extension
+  overlapChroms <- checkBedRegionsOverlap(bed_table = bed_table)
+  if(!is.null(overlapChroms)){
+    message("[error extendBedRegionsWithNoOverlap] regions in bed_table should not overlap, ",
+            "you can break them down using the function breakDownOverlappingBedRegions.")
+    return(NULL)
+  }
+  
+  tmp_bed_table <- NULL
+  if(extended>0){
+    # extend each chrom separately so that extensions don't overlap
+    tmp_chroms <- unique(bed_table$chr)
+    for(tmp_chrom in tmp_chroms){
+      tmp_bed_table_chrom <- bed_table[bed_table$chr==tmp_chrom,,drop=F]
+      if(nrow(tmp_bed_table_chrom)>0){
+        for(i in 1:nrow(tmp_bed_table_chrom)){
+          if(i==1) {
+            tmp_bed_table_chrom$start[i] <- max(tmp_bed_table_chrom$start[i]-extended,1)
+          }
+          if(i+1<=nrow(tmp_bed_table_chrom)){
+            # we need to check that the end of this extended region does not
+            # overlap with the start of the next region
+            extended_diff <-  (tmp_bed_table_chrom$start[i+1] - extended) - (tmp_bed_table_chrom$end[i] + extended)
+            if(extended_diff>0){
+              tmp_bed_table_chrom$end[i] <- tmp_bed_table_chrom$end[i] + extended
+              tmp_bed_table_chrom$start[i+1] <- tmp_bed_table_chrom$start[i+1] - extended
+            }else{
+              # find the place where to break the overlap, halfway between the region boundaries should do
+              midpoint <- floor((tmp_bed_table_chrom$end[i] + tmp_bed_table_chrom$start[i+1])/2)
+              tmp_bed_table_chrom$end[i] <- midpoint
+              tmp_bed_table_chrom$start[i+1] <- midpoint + 1
+            }
+          }
+          if(i==nrow(tmp_bed_table_chrom)){
+            tmp_bed_table_chrom$end[i] <- tmp_bed_table_chrom$end[i]+extended
+          }
+        }
+        tmp_bed_table <- rbind(tmp_bed_table,tmp_bed_table_chrom)
+      }
+    }
+  }else{
+    tmp_bed_table <- bed_table
+  }
+  return(tmp_bed_table)
 }
 

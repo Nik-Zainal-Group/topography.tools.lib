@@ -2,7 +2,7 @@
 % Please edit documentation in R/base.R
 \name{plotBedSignalRegion}
 \alias{plotBedSignalRegion}
-\title{Remove N from bed table}
+\title{Plot signal of bed regions}
 \usage{
 plotBedSignalRegion(
   bed_table,
@@ -71,6 +71,8 @@ The names of the list need to match the names of the highlightPositions list}
 \item{ylabel2}{ylabel for the bed_table2 signal}
 }
 \description{
-Given a table of bed regions and a reference genome, trim and split the bed
-bed regions to remove reference genome N positions.
+Given a table of bed regions with the signal column, plot the signal values
+across a given region. Signal for segments not included in the given bed regions
+will be set to zero. A second bed table can be specified, and its signal will be
+plotted along with the signal of the first bed table.
 }

@@ -233,3 +233,24 @@ test_that("test plotBedSignalRegion with two signals", {
   unlink(filename)
   
 })
+
+test_that("test extendBedRegionsWithNoOverlap", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(3000,15000),
+                          end=c(5000,20000),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  
+  extended_expected <- data.frame(chr=c(1,1),
+                                  start=c(1,10001),
+                                  end=c(10000,25000),
+                                  id=c(1,2),
+                                  stringsAsFactors = F)
+  
+  bed_table_extended <- extendBedRegionsWithNoOverlap(bed_table = bed_table,
+                                                      extended = 5000)
+  
+  expect_equal(bed_table_extended,extended_expected)
+
+})
