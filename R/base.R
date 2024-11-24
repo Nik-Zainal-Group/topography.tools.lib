@@ -1403,3 +1403,60 @@ getIRD <- function(bed_table){
   }
   return(new_bed_table)
 }
+
+
+
+
+#' Compute distance of positions to the nearest bed region
+#'
+#' Given a set of positions and a set of bed regions, annotate the distance of
+#' each position to the nearest bed region. Distance is 0 if the position is in
+#' a region, and NA if the position is on a chromosome where there are no regions.
+#' Regions need to be non-overlapping.
+#' 
+#' @param positions data frame with required columns: chr, position, id 
+#' @param bed_table data frame with required columns: chr, start, end, id 
+#' @return annotated positions with distance to nearest bed region
+#' @export
+distanceOfPositionToNearestBedRegion <- function(positions,
+                                                 bed_table){
+  
+  # let's check which positions are inside a bed_table, so have distance 0
+  res_int <- intersectPositionsAndBedRegions_nonOverlapping(positions = positions,
+                                                            bed_table = bed_table,
+                                                            computeStats = TRUE)
+  annotatedPositions <- res_int$annotatedPositions
+  annotatedPositions$classAnnotation <- NULL
+  colnames(annotatedPositions)[which(colnames(annotatedPositions)=="idAnnotation")] <- "nearestRegion"
+  annotatedPositions$distanceToNearestRegion[!is.na(annotatedPositions$nearestRegion)] <- 0
+  
+  # now let's find the distance of the mutations not in the regions
+  leftoverPositions <- annotatedPositions[is.na(annotatedPositions$nearestRegion),,drop=F]
+  
+  if(nrow(leftoverPositions)>0){
+    # index the positions and the regions
+    rownames(positions) <- positions$id
+    rownames(bed_table) <- bed_table$id
+    
+    # find the nearest region to each position by extending the regions
+    # need to know how much to extend, can be tricky, so just extend max chrom 
+    # length, so about 250 mil
+    bed_table_extended <- extendBedRegionsWithNoOverlap(bed_table = bed_table,
+                                                        extended = 250000000)
+    res_int_ext <- intersectPositionsAndBedRegions_nonOverlapping(positions = leftoverPositions,
+                                                                  bed_table = bed_table_extended,
+                                                                  computeStats = TRUE)
+    # if some positions still are not assigned, then there are no regions in the chromosome
+    annotatedLeftover <- res_int_ext$annotatedPositions
+    annotatedLeftover <- annotatedLeftover[!is.na(annotatedLeftover$idAnnotation),,drop=F]
+    # now we can update
+    if(nrow(annotatedLeftover)>0){
+      annotatedPositions[annotatedLeftover$id,"nearestRegion"] <- annotatedLeftover$idAnnotation
+      annotatedPositions[annotatedLeftover$id,"distanceToNearestRegion"] <- apply(abs(annotatedLeftover$position - bed_table[annotatedLeftover$idAnnotation,c("start","end")]),1,min)
+      
+    }
+  }
+
+  # return annotated positions
+  return(annotatedPositions)
+}

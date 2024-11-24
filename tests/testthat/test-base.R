@@ -268,3 +268,23 @@ test_that("test getIRD", {
   expect_equal(res_ird$aveIRD,c(10000,5000.5,1,NA))
   
 })
+
+test_that("test distanceOfPositionToNearestBedRegion", {
+  
+  positions <- data.frame(chr = c(1,1,1,3,2,2,2,2),
+                          position = c(100,200,300,400,500,600,700,800),
+                          id=paste0("y",c(1,2,3,4,5,6,7,8)),
+                          stringsAsFactors = F)
+  bed_table <- data.frame(chr = c(1,1,2,2),
+                          start = c(95,350,450,506),
+                          end = c(205,405,505,705),
+                          id=paste0("x",c(1,2,3,4)),
+                          stringsAsFactors = F)
+  
+  res_dist <- distanceOfPositionToNearestBedRegion(positions = positions,
+                                                   bed_table = bed_table)
+  
+  expect_equal(res_dist$distanceToNearestRegion,c(0,0,50,0,0,0,95,NA))
+
+})
+
