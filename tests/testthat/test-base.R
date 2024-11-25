@@ -284,7 +284,7 @@ test_that("test distanceOfPositionToNearestBedRegion", {
   res_dist <- distanceOfPositionToNearestBedRegion(positions = positions,
                                                    bed_table = bed_table)
   
-  expect_equal(res_dist$distanceToNearestRegion,c(0,0,50,0,0,0,95,NA))
+  expect_equal(res_dist$distanceToNearestRegion,c(0,0,-50,0,0,0,95,NA))
 
 })
 

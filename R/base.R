@@ -1453,7 +1453,11 @@ distanceOfPositionToNearestBedRegion <- function(positions,
     if(nrow(annotatedLeftover)>0){
       annotatedPositions[annotatedLeftover$id,"nearestRegion"] <- annotatedLeftover$idAnnotation
       annotatedPositions[annotatedLeftover$id,"distanceToNearestRegion"] <- apply(abs(annotatedLeftover$position - bed_table[annotatedLeftover$idAnnotation,c("start","end")]),1,min)
-      
+      # recover sign
+      idInvertSign <- annotatedLeftover$id[(annotatedLeftover$position - bed_table[annotatedLeftover$idAnnotation,"start"]) < 0]
+      if(length(idInvertSign)>0){
+        annotatedPositions[idInvertSign,"distanceToNearestRegion"] <- - annotatedPositions[idInvertSign,"distanceToNearestRegion"]
+      }
     }
   }
 
