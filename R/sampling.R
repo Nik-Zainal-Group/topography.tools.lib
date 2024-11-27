@@ -66,6 +66,7 @@ resamplePositions <- function(positions,
   if(!is.null(genomev) & !is.null(samplingRegions)){
     message("[warning resamplePositions] both genomev and samplingRegions have been specified,",
             " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
+    genomev <- NULL
   }
   # check for positions colnames
   requiredcolumns <- c("chr","position")
@@ -165,6 +166,7 @@ resampleBedRegions <- function(bed_table,
   if(!is.null(genomev) & !is.null(samplingRegions)){
     message("[warning resampleBedRegions] both genomev and samplingRegions have been specified,",
             " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
+    genomev <- NULL
   }
   
   # check for bed_table colnames

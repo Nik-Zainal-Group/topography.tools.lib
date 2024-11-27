@@ -1,16 +1,4 @@
 
-
-# positions columns needed: chr, position, id
-# bed_table columns needed: chr, start, end, optionally id
-# extended indicates how many bps the bed regions should be extended
-# left and right to include very close positions that do not strictly in the regions
-# bed_table <- data.frame(chr=c(1,1,1,1,1),id=c(1,2,3,4,5),start=c(1,2,3,5,8),end=c(1,2,3,5,8),stringsAsFactors = F)
-# positions <- data.frame(chr=c(1,1),position=c(3,4),id=c(1,2),stringsAsFactors = F)
-# bed_table <- data.frame(chr=c(1,1,1,1,1),id=c(1,2,3,4,5),class=c(1,2,3,4,5),start=c(1,2,3,5,8),end=c(1,2,3,5,8),stringsAsFactors = F)
-# positions <- data.frame(chr=c(1,1),position=c(3,4),id=c(1,2),class=c(1,2),stringsAsFactors = F)
-# extended <- 1
-# nsamples <- 1
-
 #' Correlate positions with bed regions
 #'
 #' Given a set of positions and a set of regions, calculate the overlap between
@@ -69,47 +57,16 @@ correlatePositionsWithBedRegions <- function(positions,
     bed_table$class <- "anyRegion"
   }
   
-  # check which chromosomes have overlap if any
-  isBedRegionOverlap <- FALSE
-  overlapChroms <- checkBedRegionsOverlap(bed_table)
-  if(!is.null(overlapChroms)) isBedRegionOverlap <- TRUE
+  # check if both genomev and samplingRegions have been specified and give a warning
+  if(!is.null(genomev) & !is.null(samplingRegions)){
+    message("[warning correlatePositionsWithBedRegions] both genomev and samplingRegions have been specified,",
+            " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
+    genomev <- NULL
+  }
   
   # sort
   positions <- sortPositions(positions)
   bed_table <- sortBed(bed_table)
-  # give each region its own class id
-  # bed_table$class=paste0(bed_table$chr,"_",sprintf("%d",bed_table$start),"_",sprintf("%d",bed_table$end))
-  # if(!("id" %in% colnames(bed_table))){
-  #   bed_table$id <- 1:nrow(bed_table)
-  # }
-  # might need a copy for simulations later
-  # bed_table_copy <- bed_table
-  
-  # some checks
-  # if(!extendedBedRegionAllowOverlap & isBedRegionOverlap){
-  #   message("[warning correlatePositionsWithBedRegions] extendedBedRegionAllowOverlap ",
-  #           "set to FALSE but will be ignored because bed_table contains overlaps already.")
-  #   extendedBedRegionAllowOverlap <- TRUE
-  # }
-  # if(!extendedBedRegionAllowOverlap & resampleBedRegionsAllowOverlap){
-  #   message("[warning correlatePositionsWithBedRegions] extendedBedRegionAllowOverlap ",
-  #           "set to FALSE but will be ignored because resampleBedRegionsAllowOverlap is TRUE.")
-  #   extendedBedRegionAllowOverlap <- TRUE
-  # }
-  
-  # extend regions if required
-  # if(extended>0){
-  #   if(!extendedBedRegionAllowOverlap){
-  #     tmp_bed_table <- extendBedRegionsWithNoOverlap(bed_table = bed_table,
-  #                                                    extended = extended)
-  #   }else{
-  #     tmp_bed_table <- extendBedRegions(bed_table = bed_table,
-  #                                       extended = extended)
-  #   }
-  # }else{
-  #   tmp_bed_table <- bed_table
-  # }
-
   
   # find overlaps
   res_assign <- intersectPositionsAndBedRegions(positions = positions,
@@ -125,17 +82,6 @@ correlatePositionsWithBedRegions <- function(positions,
   annotatedPositions <- res_assign$annotatedPositions
   annotatedBedRegions <- res_assign$annotatedBedRegions
   
-  # add some annotations
-  # bed_table$npositionsInRegion <- regionsCounts[bed_table$id]
-  # bed_table$positionIds <- NA
-  # for(i in 1:nrow(bed_table)){
-  #   # i <- 1
-  #   posids <- res_assign$annotatedPositions[res_assign$annotatedPositions$regionClassAnnotation==bed_table[i,"id"],"id"]
-  #   if(length(posids)>0) bed_table[i,"positionIds"] <- paste(posids,collapse = ";")
-  # }
-  # # change a column name to match bed table
-  # res_assign$annotatedPositions$regionid <- res_assign$annotatedPositions$regionClassAnnotation
-  # res_assign$annotatedPositions$regionClassAnnotation <- NULL
   # summary table
   summaryTable <- data.frame(row.names = c("positions","regions"),
                              noverlap=c(totalPostionsInAnyRegion,totalRegionsAtAnyPosition),
@@ -166,7 +112,7 @@ correlatePositionsWithBedRegions <- function(positions,
       # set random seed now so no need to set it later
       doRNG::registerDoRNG(randomSeed)
     }
-    # for (i in 1:nsamples){
+    
     res_list <- foreach::foreach(i=1:nsamples) %dorng% {
       message("[info correlatePositionsWithBedRegions] resampling ",i," of ",nsamples)
       if(resamplePositionsFlag){
@@ -185,14 +131,6 @@ correlatePositionsWithBedRegions <- function(positions,
                                                   randomSeed = NULL,
                                                   samplingRegions = samplingRegions,
                                                   allowRegionsOverlap = resampleBedRegionsAllowOverlap)
-        # # extend if necessary
-        # if(!resampleBedRegionsAllowOverlap & !extendedBedRegionAllowOverlap){
-        #   resampled_bed_table <- extendBedRegionsWithNoOverlap(bed_table = resampled_bed_table,
-        #                                                        extended = extended)
-        # }else{
-        #   resampled_bed_table <- extendBedRegions(bed_table = resampled_bed_table,
-        #                                           extended = extended)
-        # }
 
       }else{
         resampled_bed_table <- bed_table
@@ -201,14 +139,7 @@ correlatePositionsWithBedRegions <- function(positions,
       # now get the stats
       res_sample_assign <- intersectPositionsAndBedRegions(positions = resampled_positions,
                                                            bed_table = resampled_bed_table)
-      # 
-      # 
-      # regionsCounts_sample <- apply(res_sample_assign$countsTable, 2, function(x) sum(x))
-      # nregionsWithPositions_sample <- sum(regionsCounts_sample[1:(length(regionsCounts_sample)-1)]>0)
-      # # sampledNregionsWithPositions <- c(sampledNregionsWithPositions,nregionsWithPositions_sample)
-      # npositionsInRegions_sample <- sum(regionsCounts_sample[1:(length(regionsCounts_sample)-1)])
-      # # sampledNpositionsInRegions <- c(sampledNpositionsInRegions,npositionsInRegions_sample)
-      # return(c(nregionsWithPositions_sample,npositionsInRegions_sample))
+      # combine and return
       returnObj <- list()
       returnObj$sampled_PostionsInAnyRegion <- res_sample_assign$totalPostionsInAnyRegion
       returnObj$sampled_RegionsAtAnyPosition <- res_sample_assign$totalRegionsAtAnyPosition
@@ -217,6 +148,7 @@ correlatePositionsWithBedRegions <- function(positions,
       return(returnObj)
     }
     
+    # reorganise
     for(i in 1:length(res_list)){
       # i <- 1
       sampled_PostionsInAnyRegion[i] <- res_list[[i]]$sampled_PostionsInAnyRegion
@@ -226,7 +158,6 @@ correlatePositionsWithBedRegions <- function(positions,
       
     }
   }
-  
   
   # return object
   returnObj <- list()
@@ -302,6 +233,248 @@ correlatePositionsWithBedRegions <- function(positions,
   }
   return(returnObj)
 }
+
+
+
+
+#' Correlate two sets of bed regions
+#'
+#' Given two sets of regions, calculate the overlap between the regions in the first
+#' set and the regions in the second set (see the function intersectBed).
+#' If nsamples is greater than zero, then the regions are resampled 
+#' randomly so that a NULL distribution of overlaps can be obtained. Notice that
+#' the the bigger nsamples is, the more accurate the p-value for rejecting the NULL
+#' hypothesis will be. A returned p-value of 0 just means that the p-value reached
+#' the limit of decimal numbers that can be obtained and should be interpreted as
+#' "< 1/nsamples".
+#' 
+#' @param bed_table1 data frame with required columns: chr, start, end, id
+#' @param bed_table2 data frame with required columns: chr, start, end, id
+#' @param nsamples number of resampling used to determine the NULL distribution
+#' @param altHypothesis greatherthan (the default) or lowerthan can be used 
+#' @param resampleBedRegions1Flag if TRUE then bed_table1 will be resampled to determine the NULL distribution. Note that at least one between resampleBedRegions1Flag and resampleBedRegions2Flag should be TRUE
+#' @param resampleBedRegions2Flag if TRUE then bed_table2 will be resampled to determine the NULL distribution. Note that at least one between resampleBedRegions1Flag and resampleBedRegions2Flag should be TRUE
+#' @param resampleBedRegions1AllowOverlap allow overlapping bed regions when resampling bed_table1
+#' @param resampleBedRegions2AllowOverlap allow overlapping bed regions when resampling bed_table2
+#' @param genomev hg19 or hg38
+#' @param samplingRegions supply your own sampling regions for resampling positions and/or bed_table.
+#' @param randomSeed set a random seed for the resampling 
+#' @param nparallel how many parallel processes to use when running the resampling 
+#' @return data frame of ordered positions
+#' @export
+correlateBedRegions <- function(bed_table1,
+                                bed_table2,
+                                nsamples=0,
+                                altHypothesis="greaterthan",
+                                resampleBedRegions1Flag=TRUE,
+                                resampleBedRegions2Flag=TRUE,
+                                resampleBedRegions1AllowOverlap=TRUE,
+                                resampleBedRegions2AllowOverlap=TRUE,
+                                genomev="hg19",
+                                samplingRegions=NULL,
+                                randomSeed=NULL,
+                                nparallel=1){
+  
+  # check required columns
+  requiredcolumns <- c("chr","start","end","id")
+  if(!all(requiredcolumns %in% colnames(bed_table1))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table1))
+    message("[error correlateBedRegions] bed_table1 missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  if(!all(requiredcolumns %in% colnames(bed_table2))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table2))
+    message("[error correlateBedRegions] bed_table2 missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # add single class if missing
+  if(!("class" %in% colnames(bed_table1))){
+    bed_table1$class <- "anyRegion"
+  }
+  if(!("class" %in% colnames(bed_table2))){
+    bed_table2$class <- "anyRegion"
+  }
+  
+  # check if both genomev and samplingRegions have been specified and give a warning
+  if(!is.null(genomev) & !is.null(samplingRegions)){
+    message("[warning correlatePositionsWithBedRegions] both genomev and samplingRegions have been specified,",
+            " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
+    genomev <- NULL
+  }
+  
+  # sort
+  bed_table1 <- sortBed(bed_table1)
+  bed_table2 <- sortBed(bed_table2)
+  
+  # find overlaps
+  res_assign <- intersectBed(bed_table1 = bed_table1,
+                             bed_table2 = bed_table2)
+  
+  # prepare info
+  totalRegions1overlappingAnyRegion2 <- res_assign$totalRegions1overlappingAnyRegion2
+  totalRegions2overlappingAnyRegion1 <- res_assign$totalRegions2overlappingAnyRegion1
+  countsTable_regions1overlappingRegion2classes <- res_assign$countsTable_regions1overlappingRegion2classes
+  countsTable_regions2overlappingRegion1classes <- res_assign$countsTable_regions2overlappingRegion1classes
+  
+  # update with annotations
+  annotatedBedRegions1 <- res_assign$annotatedBedRegions1
+  annotatedBedRegions2 <- res_assign$annotatedBedRegions2
+  
+  # summary table
+  summaryTable <- data.frame(row.names = c("bed_table1","bed_table2"),
+                             noverlap=c(totalRegions1overlappingAnyRegion2,totalRegions2overlappingAnyRegion1),
+                             ntotal=c(nrow(bed_table1),nrow(bed_table2)),
+                             stringsAsFactors = F)
+  
+  # checks before simulations
+  if(nsamples>0 & !resampleBedRegions1Flag & !resampleBedRegions2Flag){
+    message("[warning correlateBedRegions] nsamples>0 but both ",
+            "resampleBedRegions1Flag and resampleBedRegions2Flag are set to FALSE. ",
+            "no resampling will be performed.")
+    nsamples <- 0
+  }
+  
+  # use simulations to find the significance
+  # initialise
+  sampled_Regions1overlappingAnyRegion2 <- integer(nsamples)
+  sampled_Regions2overlappingAnyRegion1 <- integer(nsamples)
+  sampled_regions1overlappingRegion2classes <- array(dim = c(nrow(countsTable_regions1overlappingRegion2classes),ncol(countsTable_regions1overlappingRegion2classes),nsamples),
+                                                     dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes),1:nsamples))
+  sampled_regions2overlappingRegion1classes <-  array(dim = c(nrow(countsTable_regions2overlappingRegion1classes),ncol(countsTable_regions2overlappingRegion1classes),nsamples),
+                                                      dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes),1:nsamples))
+  if(nsamples>0){
+    # set RNGkind to avoid warning
+    RNGkind("L'Ecuyer-CMRG")
+    doParallel::registerDoParallel(nparallel)
+    if(!is.null(randomSeed)){
+      # set random seed now so no need to set it later
+      doRNG::registerDoRNG(randomSeed)
+    }
+    
+    res_list <- foreach::foreach(i=1:nsamples) %dorng% {
+      message("[info correlateBedRegions] resampling ",i," of ",nsamples)
+      
+      if(resampleBedRegions1Flag){
+        resampled_bed_table1 <- resampleBedRegions(bed_table = bed_table1,
+                                                   genomev = genomev,
+                                                   randomSeed = NULL,
+                                                   samplingRegions = samplingRegions,
+                                                   allowRegionsOverlap = resampleBedRegions1AllowOverlap)
+        
+      }else{
+        resampled_bed_table1 <- bed_table1
+      }
+      
+      if(resampleBedRegions2Flag){
+        resampled_bed_table2 <- resampleBedRegions(bed_table = bed_table2,
+                                                  genomev = genomev,
+                                                  randomSeed = NULL,
+                                                  samplingRegions = samplingRegions,
+                                                  allowRegionsOverlap = resampleBedRegions2AllowOverlap)
+        
+      }else{
+        resampled_bed_table2 <- bed_table2
+      }
+      
+      # now get the stats
+      res_sample_assign <- intersectBed(bed_table1 = resampled_bed_table1,
+                                        bed_table2 = resampled_bed_table2)
+      # combine and return
+      returnObj <- list()
+      returnObj$sampled_Regions1overlappingAnyRegion2 <- res_sample_assign$totalRegions1overlappingAnyRegion2
+      returnObj$sampled_Regions2overlappingAnyRegion1 <- res_sample_assign$totalRegions2overlappingAnyRegion1
+      returnObj$sampled_regions1overlappingRegion2classes <- as.matrix(res_sample_assign$countsTable_regions1overlappingRegion2classes[rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes),drop=F])
+      returnObj$sampled_regions2overlappingRegion1classes <- as.matrix(res_sample_assign$countsTable_regions2overlappingRegion1classes[rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes),drop=F])
+      return(returnObj)
+    }
+    
+    # reorganise
+    for(i in 1:length(res_list)){
+      # i <- 1
+      sampled_Regions1overlappingAnyRegion2[i] <- res_list[[i]]$sampled_Regions1overlappingAnyRegion2
+      sampled_Regions2overlappingAnyRegion1[i] <- res_list[[i]]$sampled_Regions2overlappingAnyRegion1
+      sampled_regions1overlappingRegion2classes[,,i] <- res_list[[i]]$sampled_regions1overlappingRegion2classes
+      sampled_regions2overlappingRegion1classes[,,i] <- res_list[[i]]$sampled_regions2overlappingRegion1classes
+      
+    }
+  }
+  
+  # return object
+  returnObj <- list()
+  returnObj$annotatedBedRegions1 <- annotatedBedRegions1
+  returnObj$annotatedBedRegions2 <- annotatedBedRegions2
+  returnObj$summaryOverlaps <- summaryTable
+  returnObj$nsamples <- nsamples
+  returnObj$countsTable_regions1overlappingRegion2classes <- countsTable_regions1overlappingRegion2classes
+  returnObj$countsTable_regions2overlappingRegion1classes <- countsTable_regions2overlappingRegion1classes
+  
+  if(nsamples>0){
+    message("[info correlateBedRegions] calculating p-values... ")
+    
+    returnObj$sampled_Regions1overlappingAnyRegion2 <- sampled_Regions1overlappingAnyRegion2
+    returnObj$sampled_Regions2overlappingAnyRegion1 <- sampled_Regions2overlappingAnyRegion1
+    
+    if(altHypothesis=="greaterthan"){
+      returnObj$pvalue_Regions1overlappingAnyRegion2 <- sum(totalRegions1overlappingAnyRegion2<=sampled_Regions1overlappingAnyRegion2)/nsamples
+      returnObj$pvalue_Regions2overlappingAnyRegion1 <- sum(totalRegions2overlappingAnyRegion1<=sampled_Regions2overlappingAnyRegion1)/nsamples
+    }else if(altHypothesis=="lowerthan"){
+      returnObj$pvalue_Regions1overlappingAnyRegion2 <- sum(totalRegions1overlappingAnyRegion2>=sampled_Regions1overlappingAnyRegion2)/nsamples
+      returnObj$pvalue_Regions2overlappingAnyRegion1 <- sum(totalRegions2overlappingAnyRegion1>=sampled_Regions2overlappingAnyRegion1)/nsamples
+    }else{
+      message("[info correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+    }
+    
+    # calculate all p-values the easy way
+    returnObj$sampled_regions1overlappingRegion2classes <- sampled_regions1overlappingRegion2classes
+    returnObj$sampled_regions2overlappingRegion1classes <- sampled_regions2overlappingRegion1classes
+    
+    pvalue_regions1overlappingRegion2classes <- matrix(nrow = nrow(countsTable_regions1overlappingRegion2classes),ncol = ncol(countsTable_regions1overlappingRegion2classes),
+                                                       dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes)))
+    pvalue_regions2overlappingRegion1classes <- matrix(nrow = nrow(countsTable_regions2overlappingRegion1classes),ncol = ncol(countsTable_regions2overlappingRegion1classes),
+                                                       dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes)))
+    if(altHypothesis=="greaterthan"){
+      for(i in 1:nrow(countsTable_regions1overlappingRegion2classes)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regions1overlappingRegion2classes)){
+          # j <- 1
+          pvalue_regions1overlappingRegion2classes[i,j] <- sum(countsTable_regions1overlappingRegion2classes[i,j]<=sampled_regions1overlappingRegion2classes[i,j,])/nsamples
+        }
+      }
+      for(i in 1:nrow(countsTable_regions2overlappingRegion1classes)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regions2overlappingRegion1classes)){
+          # j <- 1
+          pvalue_regions2overlappingRegion1classes[i,j] <- sum(countsTable_regions2overlappingRegion1classes[i,j]<=sampled_regions2overlappingRegion1classes[i,j,])/nsamples
+        }
+      }
+      returnObj$pvalue_regions1overlappingRegion2classes <- pvalue_regions1overlappingRegion2classes
+      returnObj$pvalue_regions2overlappingRegion1classes <- pvalue_regions2overlappingRegion1classes
+    }else if(altHypothesis=="lowerthan"){
+      for(i in 1:nrow(countsTable_regions1overlappingRegion2classes)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regions1overlappingRegion2classes)){
+          # j <- 1
+          pvalue_regions1overlappingRegion2classes[i,j] <- sum(countsTable_regions1overlappingRegion2classes[i,j]>=sampled_regions1overlappingRegion2classes[i,j,])/nsamples
+        }
+      }
+      for(i in 1:nrow(countsTable_regions2overlappingRegion1classes)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regions2overlappingRegion1classes)){
+          # j <- 1
+          pvalue_regions2overlappingRegion1classes[i,j] <- sum(countsTable_regions2overlappingRegion1classes[i,j]>=sampled_regions2overlappingRegion1classes[i,j,])/nsamples
+        }
+      }
+      returnObj$pvalue_regions1overlappingRegion2classes <- pvalue_regions1overlappingRegion2classes
+      returnObj$pvalue_regions2overlappingRegion1classes <- pvalue_regions2overlappingRegion1classes
+    }else{
+      message("[info correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+    }
+    
+  }
+  return(returnObj)
+}
+
 
 
 
