@@ -519,12 +519,12 @@ intersectBed_nonOverlapping <- function(bed_table1,
   
   requiredcolumns <- c("chr","start","end","id")
   if(!all(requiredcolumns %in% colnames(bed_table1))){
-    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table1))
     message("[error intersectBed_nonOverlapping] bed_table1 missing required columns: ",paste(missingcolumns,collapse = ", "))
     return(NULL)
   }
   if(!all(requiredcolumns %in% colnames(bed_table2))){
-    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table2))
     message("[error intersectBed_nonOverlapping] bed_table2 missing required columns: ",paste(missingcolumns,collapse = ", "))
     return(NULL)
   }  
@@ -870,12 +870,12 @@ intersectBed <- function(bed_table1,
   
   requiredcolumns <- c("chr","start","end","id")
   if(!all(requiredcolumns %in% colnames(bed_table1))){
-    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table1))
     message("[error intersectBed] bed_table1 missing required columns: ",paste(missingcolumns,collapse = ", "))
     return(NULL)
   }
   if(!all(requiredcolumns %in% colnames(bed_table2))){
-    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table2))
     message("[error intersectBed] bed_table2 missing required columns: ",paste(missingcolumns,collapse = ", "))
     return(NULL)
   }

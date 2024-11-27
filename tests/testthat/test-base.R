@@ -288,3 +288,17 @@ test_that("test distanceOfPositionToNearestBedRegion", {
 
 })
 
+test_that("test extendBedRegions", {
+  
+  bed_table <- data.frame(chr=c(1,1,1,2),
+                          start=c(3000,15000,20001,10000),
+                          end=c(5000,20000,25000,20000),
+                          id=c(1,2,3,4),
+                          stringsAsFactors = F)
+  
+  res_ext <- extendBedRegions(bed_table = bed_table,
+                              extended = 4000)
+  
+  expect_equal(c(res_ext$start,res_ext$end),c(1,11000,16001, 6000,9000,24000,29000,24000))
+  
+})

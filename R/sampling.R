@@ -67,6 +67,13 @@ resamplePositions <- function(positions,
     message("[warning resamplePositions] both genomev and samplingRegions have been specified,",
             " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
   }
+  # check for positions colnames
+  requiredcolumns <- c("chr","position")
+  if(!all(requiredcolumns %in% colnames(positions))){
+    misscol <- setdiff(requiredcolumns,colnames(positions))
+    message("[error resamplePositions] missing columns: ",paste(misscol,collapse = ", "))
+    return(NULL)
+  }
   
   if(!is.null(randomSeed)){
     set.seed(randomSeed)
@@ -104,7 +111,13 @@ resamplePositions <- function(positions,
     newposition <- randomPositionInRegions(samplingRegions = samplingRegions[samplingRegions$chr==positions$chr[i],,drop=F])
     resampled_positions <- rbind(resampled_positions,newposition)
   }
-  return(resampled_positions)
+  
+  # add additional columns back
+  additionalcolumns <- setdiff(colnames(positions),requiredcolumns)
+  if(length(additionalcolumns)>0){
+    resampled_positions <- cbind(resampled_positions,positions[,additionalcolumns,drop=F])
+  }
+  return(sortPositions(resampled_positions))
 }
 
 
@@ -154,6 +167,14 @@ resampleBedRegions <- function(bed_table,
             " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
   }
   
+  # check for bed_table colnames
+  requiredcolumns <- c("chr","start","end")
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    misscol <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error resampleBedRegions] missing columns: ",paste(misscol,collapse = ", "))
+    return(NULL)
+  }
+  
   if(!is.null(randomSeed)){
     set.seed(randomSeed)
   }
@@ -197,6 +218,7 @@ resampleBedRegions <- function(bed_table,
   samplingRegions_copy <- samplingRegions[,c("chr","start","end","size","regionprob"),drop=F]
   
   resampled_bed_table <- NULL
+  resampled_successfully <- logical(nrow(bed_table))
   for(i in 1:nrow(bed_table)){
     # i <- 1
     if((i %% 50 == 0) & verbose){
@@ -213,6 +235,7 @@ resampleBedRegions <- function(bed_table,
               ", either chromosome not availalbe or no regions large enough in samplingRegions. ",
               "If allowRegionsOverlap=FALSE, this may also depend on other resampled regions on the same chromosome.")
       newrow <- NULL
+      resampled_successfully[i] <- FALSE
     }else{
       # scale the probability according to the available regions
       nonzeroprob <- tmpSamplingRegions$regionprob > 0
@@ -225,6 +248,7 @@ resampleBedRegions <- function(bed_table,
                            start = rstart$position,
                            end = rend,
                            stringsAsFactors = F)
+      resampled_successfully[i] <- TRUE
     }
     
     resampled_bed_table <- rbind(resampled_bed_table,newrow)
@@ -266,6 +290,12 @@ resampleBedRegions <- function(bed_table,
       
     }
 
+  }
+  
+  # add additional columns back
+  additionalcolumns <- setdiff(colnames(bed_table),requiredcolumns)
+  if(length(additionalcolumns)>0){
+    resampled_bed_table <- cbind(resampled_bed_table,bed_table[resampled_successfully,additionalcolumns,drop=F])
   }
   
   return(sortBed(resampled_bed_table))

@@ -2,6 +2,9 @@
 #' @importFrom foreach %dopar%
 NULL
 
+#' @importFrom doRNG %dorng%
+NULL
+
 #' Sort chromosomes
 #'
 #' Sort a list of chromosome names.
@@ -1352,6 +1355,29 @@ extendBedRegionsWithNoOverlap <- function(bed_table,
 }
 
 
+#' Extend bed regions 
+#'
+#' Given a table of bed regions, extend the regions in both directions by a given
+#' length. When extending at the beginning of a chromosome, 1 will be
+#' the minimum position. This function will extend bed regions allowing bed regions
+#' to overlap. Use function extendBedRegionsWithNoOverlap for extending non-overlapping
+#' regions and preserving the non-overlap property.
+#' 
+#' 
+#' @param bed_table data frame with required columns: chr, start, end
+#' @param extended length in number of bases by which each region should be
+#' extended in both directions
+#' @return updated bed_table
+#' @export
+extendBedRegions <- function(bed_table,
+                             extended){
+  bed_table$end <- bed_table$end + extended
+  tmpnewstart <- bed_table$start - extended
+  bed_table$start <- sapply(tmpnewstart,function(x) {
+    return(ifelse(x>0,x,1))
+  })
+  return(bed_table)
+}
 
 #' Compute inter-region distance of a set of bed regions
 #'
@@ -1403,7 +1429,6 @@ getIRD <- function(bed_table){
   }
   return(new_bed_table)
 }
-
 
 
 
