@@ -230,9 +230,55 @@ correlatePositionsWithBedRegions <- function(positions,
       message("[info correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
     
+    # calculate also the mean/median/sd of counts
+    returnObj$median_PostionsInAnyRegion <- median(sampled_PostionsInAnyRegion)
+    returnObj$mean_PostionsInAnyRegion <- mean(sampled_PostionsInAnyRegion)
+    returnObj$sd_PostionsInAnyRegion <- sd(sampled_PostionsInAnyRegion)
+    returnObj$median_RegionsAtAnyPosition <- median(sampled_RegionsAtAnyPosition)
+    returnObj$mean_RegionsAtAnyPosition <- mean(sampled_RegionsAtAnyPosition)
+    returnObj$sd_RegionsAtAnyPosition <- sd(sampled_RegionsAtAnyPosition)
+    
+    median_positionsInRegionClasses <- matrix(nrow = nrow(countsTable_positionsInRegionClasses),ncol = ncol(countsTable_positionsInRegionClasses),
+                                              dimnames = list(rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses)))
+    mean_positionsInRegionClasses <- matrix(nrow = nrow(countsTable_positionsInRegionClasses),ncol = ncol(countsTable_positionsInRegionClasses),
+                                            dimnames = list(rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses)))
+    sd_positionsInRegionClasses <- matrix(nrow = nrow(countsTable_positionsInRegionClasses),ncol = ncol(countsTable_positionsInRegionClasses),
+                                          dimnames = list(rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses)))
+    median_regionsAtPositionClasses <- matrix(nrow = nrow(countsTable_regionsAtPositionClasses),ncol = ncol(countsTable_regionsAtPositionClasses),
+                                              dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses)))
+    mean_regionsAtPositionClasses <- matrix(nrow = nrow(countsTable_regionsAtPositionClasses),ncol = ncol(countsTable_regionsAtPositionClasses),
+                                            dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses)))
+    sd_regionsAtPositionClasses <- matrix(nrow = nrow(countsTable_regionsAtPositionClasses),ncol = ncol(countsTable_regionsAtPositionClasses),
+                                          dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses)))
+    for(i in 1:nrow(countsTable_positionsInRegionClasses)){
+      # i <- 1
+      for(j in 1:ncol(countsTable_positionsInRegionClasses)){
+        # j <- 1
+        median_positionsInRegionClasses[i,j] <- median(sampled_positionsInRegionClasses[i,j,])
+        mean_positionsInRegionClasses[i,j] <- mean(sampled_positionsInRegionClasses[i,j,])
+        sd_positionsInRegionClasses[i,j] <- sd(sampled_positionsInRegionClasses[i,j,])
+      }
+    }
+    for(i in 1:nrow(countsTable_regionsAtPositionClasses)){
+      # i <- 1
+      for(j in 1:ncol(countsTable_regionsAtPositionClasses)){
+        # j <- 1
+        median_regionsAtPositionClasses[i,j] <- median(sampled_regionsAtPositionClasses[i,j,])
+        mean_regionsAtPositionClasses[i,j] <- mean(sampled_regionsAtPositionClasses[i,j,])
+        sd_regionsAtPositionClasses[i,j] <- sd(sampled_regionsAtPositionClasses[i,j,])
+      }
+    }
+    returnObj$median_positionsInRegionClasses <- median_positionsInRegionClasses
+    returnObj$mean_positionsInRegionClasses <- mean_positionsInRegionClasses
+    returnObj$sd_positionsInRegionClasses <- sd_positionsInRegionClasses
+    returnObj$median_regionsAtPositionClasses <- median_regionsAtPositionClasses
+    returnObj$mean_regionsAtPositionClasses <- mean_regionsAtPositionClasses
+    returnObj$sd_regionsAtPositionClasses <- sd_regionsAtPositionClasses
   }
   return(returnObj)
 }
+
+
 
 
 
@@ -471,6 +517,50 @@ correlateBedRegions <- function(bed_table1,
       message("[info correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
     
+    # calculate also the mean/median/sd of counts
+    returnObj$median_Regions1overlappingAnyRegion2 <- median(sampled_Regions1overlappingAnyRegion2)
+    returnObj$mean_Regions1overlappingAnyRegion2 <- mean(sampled_Regions1overlappingAnyRegion2)
+    returnObj$sd_Regions1overlappingAnyRegion2 <- sd(sampled_Regions1overlappingAnyRegion2)
+    returnObj$median_Regions2overlappingAnyRegion1 <- median(sampled_Regions2overlappingAnyRegion1)
+    returnObj$mean_Regions2overlappingAnyRegion1 <- mean(sampled_Regions2overlappingAnyRegion1)
+    returnObj$sd_Regions2overlappingAnyRegion1 <- sd(sampled_Regions2overlappingAnyRegion1)
+    
+    median_regions1overlappingRegion2classes <- matrix(nrow = nrow(countsTable_regions1overlappingRegion2classes),ncol = ncol(countsTable_regions1overlappingRegion2classes),
+                                                       dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes)))
+    mean_regions1overlappingRegion2classes <- matrix(nrow = nrow(countsTable_regions1overlappingRegion2classes),ncol = ncol(countsTable_regions1overlappingRegion2classes),
+                                                     dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes)))
+    sd_regions1overlappingRegion2classes <- matrix(nrow = nrow(countsTable_regions1overlappingRegion2classes),ncol = ncol(countsTable_regions1overlappingRegion2classes),
+                                                   dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes)))
+    median_regions2overlappingRegion1classes <- matrix(nrow = nrow(countsTable_regions2overlappingRegion1classes),ncol = ncol(countsTable_regions2overlappingRegion1classes),
+                                                       dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes)))
+    mean_regions2overlappingRegion1classes <- matrix(nrow = nrow(countsTable_regions2overlappingRegion1classes),ncol = ncol(countsTable_regions2overlappingRegion1classes),
+                                                     dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes)))
+    sd_regions2overlappingRegion1classes <- matrix(nrow = nrow(countsTable_regions2overlappingRegion1classes),ncol = ncol(countsTable_regions2overlappingRegion1classes),
+                                                   dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes)))
+    for(i in 1:nrow(countsTable_regions1overlappingRegion2classes)){
+      # i <- 1
+      for(j in 1:ncol(countsTable_regions1overlappingRegion2classes)){
+        # j <- 1
+        median_regions1overlappingRegion2classes[i,j] <- median(sampled_regions1overlappingRegion2classes[i,j,])
+        mean_regions1overlappingRegion2classes[i,j] <- mean(sampled_regions1overlappingRegion2classes[i,j,])
+        sd_regions1overlappingRegion2classes[i,j] <- sd(sampled_regions1overlappingRegion2classes[i,j,])
+      }
+    }
+    for(i in 1:nrow(countsTable_regions2overlappingRegion1classes)){
+      # i <- 1
+      for(j in 1:ncol(countsTable_regions2overlappingRegion1classes)){
+        # j <- 1
+        median_regions2overlappingRegion1classes[i,j] <- median(sampled_regions2overlappingRegion1classes[i,j,])
+        mean_regions2overlappingRegion1classes[i,j] <- mean(sampled_regions2overlappingRegion1classes[i,j,])
+        sd_regions2overlappingRegion1classes[i,j] <- sd(sampled_regions2overlappingRegion1classes[i,j,])
+      }
+    }
+    returnObj$median_regions1overlappingRegion2classes <- median_regions1overlappingRegion2classes
+    returnObj$mean_regions1overlappingRegion2classes <- mean_regions1overlappingRegion2classes
+    returnObj$sd_regions1overlappingRegion2classes <- sd_regions1overlappingRegion2classes
+    returnObj$median_regions2overlappingRegion1classes <- median_regions2overlappingRegion1classes
+    returnObj$mean_regions2overlappingRegion1classes <- mean_regions2overlappingRegion1classes
+    returnObj$sd_regions2overlappingRegion1classes <- sd_regions2overlappingRegion1classes
   }
   return(returnObj)
 }

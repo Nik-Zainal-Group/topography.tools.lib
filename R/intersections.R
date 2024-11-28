@@ -184,6 +184,9 @@ intersectionStatsComplete <- function(idMap1to2,
   returnObj$countsTable_classes2_in_id1 <- res2$countsTable_classes1_in_id2
   returnObj$countsTable_total2_in_id1 <- res2$countsTable_total1_in_id2
   returnObj$totalId2matchingAnyId1 <- res2$totalId1matchingAnyId2
+  # add some more info to the annotated tables as well
+  returnObj$idclassmap1_updated$nMatches <- returnObj$countsTable_total2_in_id1[-length(returnObj$countsTable_total2_in_id1)]
+  returnObj$idclassmap2_updated$nMatches <- returnObj$countsTable_total1_in_id2[-length(returnObj$countsTable_total1_in_id2)]
   return(returnObj)
 }
 
