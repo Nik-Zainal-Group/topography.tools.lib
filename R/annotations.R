@@ -38,6 +38,7 @@ annotateBedWithGenes <- function(bed_table,
   bed_table <- corr_res$annotatedBedRegions1
   colnames(bed_table)[which(colnames(bed_table)=="idAnnotation")] <- "geneIds"
   colnames(bed_table)[which(colnames(bed_table)=="classAnnotation")] <- "geneTypes"
+  colnames(bed_table)[which(colnames(bed_table)=="nMatches")] <- "nGenes"
   
   geneNameAnnotation <- sapply(bed_table$geneIds, function(x){
     if(is.na(x)){

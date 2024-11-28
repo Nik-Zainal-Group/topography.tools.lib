@@ -105,6 +105,8 @@ correlatePositionsWithBedRegions <- function(positions,
   sampled_regionsAtPositionClasses <- array(dim = c(nrow(countsTable_regionsAtPositionClasses),ncol(countsTable_regionsAtPositionClasses),nsamples),
                                             dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses),1:nsamples))
   if(nsamples>0){
+    message("[info correlatePositionsWithBedRegions] resampling... ")
+    
     # set RNGkind to avoid warning
     RNGkind("L'Ecuyer-CMRG")
     doParallel::registerDoParallel(nparallel)
@@ -390,6 +392,8 @@ correlateBedRegions <- function(bed_table1,
   sampled_regions2overlappingRegion1classes <-  array(dim = c(nrow(countsTable_regions2overlappingRegion1classes),ncol(countsTable_regions2overlappingRegion1classes),nsamples),
                                                       dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes),1:nsamples))
   if(nsamples>0){
+    message("[info correlateBedRegions] resampling... ")
+    
     # set RNGkind to avoid warning
     RNGkind("L'Ecuyer-CMRG")
     doParallel::registerDoParallel(nparallel)
