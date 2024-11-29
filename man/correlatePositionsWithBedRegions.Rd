@@ -15,6 +15,10 @@ correlatePositionsWithBedRegions(
   genomev = "hg19",
   samplingRegions = NULL,
   randomSeed = NULL,
+  returnResampledPositions = FALSE,
+  returnResampledBedRegions = FALSE,
+  resampled_positions_list = NULL,
+  resampled_bed_regions_list = NULL,
   nparallel = 1
 )
 }
@@ -25,9 +29,11 @@ correlatePositionsWithBedRegions(
 
 \item{altHypothesis}{greatherthan (the default) or lowerthan can be used}
 
-\item{resamplePositionsFlag}{if TRUE then positions will be resampled to determine the NULL distribution. Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE}
+\item{resamplePositionsFlag}{if TRUE then positions will be resampled to determine the NULL distribution.
+Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE}
 
-\item{resampleBedRegionsFlag}{if TRUE then bed_table will be resampled to determine the NULL distribution. Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE}
+\item{resampleBedRegionsFlag}{if TRUE then bed_table will be resampled to determine the NULL distribution.
+Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE}
 
 \item{resampleBedRegionsAllowOverlap}{allow overlapping bed regions when resampling bed_table}
 
@@ -37,12 +43,22 @@ correlatePositionsWithBedRegions(
 
 \item{randomSeed}{set a random seed for the resampling}
 
+\item{returnResampledPositions}{if TRUE and if resampling of positions was performed, return a list with all the positions data frames resampled}
+
+\item{returnResampledBedRegions}{if TRUE and if resampling of bed regions was performed, return a list with all the bed_tables data frames resampled}
+
+\item{resampled_positions_list}{supply your own resampled position tables. Use it only if you know what you are doing. Typically useful for multiple
+correlations testing so that the NULL distribution can be calculated only once}
+
+\item{resampled_bed_regions_list}{supply your own resampled bed tables. Use it only if you know what you are doing. Typically useful for multiple
+correlations testing so that the NULL distribution can be calculated only once}
+
 \item{nparallel}{how many parallel processes to use when running the resampling}
 
 \item{bed_regions}{data frame with required columns: chr, start, end, id}
 }
 \value{
-data frame of ordered positions
+object with correlation statistics and additional data
 }
 \description{
 Given a set of positions and a set of regions, calculate the overlap between

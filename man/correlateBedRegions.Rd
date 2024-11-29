@@ -16,6 +16,10 @@ correlateBedRegions(
   genomev = "hg19",
   samplingRegions = NULL,
   randomSeed = NULL,
+  returnResampledBedRegions1 = FALSE,
+  returnResampledBedRegions2 = FALSE,
+  resampled_bed_regions1_list = NULL,
+  resampled_bed_regions2_list = NULL,
   nparallel = 1
 )
 }
@@ -42,10 +46,20 @@ correlateBedRegions(
 
 \item{randomSeed}{set a random seed for the resampling}
 
+\item{returnResampledBedRegions1}{if TRUE and if resampling of bed_table1 was performed, return a list with all the bed_table1 data frames resampled}
+
+\item{returnResampledBedRegions2}{if TRUE and if resampling of bed_table2 was performed, return a list with all the bed_table2 data frames resampled}
+
+\item{resampled_bed_regions1_list}{supply your own resampled bed_table1. Use it only if you know what you are doing. Typically useful for multiple
+correlations testing so that the NULL distribution can be calculated only once}
+
+\item{resampled_bed_regions2_list}{supply your own resampled bed_table2. Use it only if you know what you are doing. Typically useful for multiple
+correlations testing so that the NULL distribution can be calculated only once}
+
 \item{nparallel}{how many parallel processes to use when running the resampling}
 }
 \value{
-data frame of ordered positions
+object with correlation statistics and additional data
 }
 \description{
 Given two sets of regions, calculate the overlap between the regions in the first

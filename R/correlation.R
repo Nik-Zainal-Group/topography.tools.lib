@@ -14,14 +14,22 @@
 #' @param bed_regions data frame with required columns: chr, start, end, id
 #' @param nsamples number of resampling used to determine the NULL distribution
 #' @param altHypothesis greatherthan (the default) or lowerthan can be used 
-#' @param resamplePositionsFlag if TRUE then positions will be resampled to determine the NULL distribution. Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE
-#' @param resampleBedRegionsFlag if TRUE then bed_table will be resampled to determine the NULL distribution. Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE
+#' @param resamplePositionsFlag if TRUE then positions will be resampled to determine the NULL distribution.
+#' Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE
+#' @param resampleBedRegionsFlag if TRUE then bed_table will be resampled to determine the NULL distribution.
+#' Note that at least one between resamplePositionsFlag and resampleBedRegionsFlag should be TRUE
 #' @param resampleBedRegionsAllowOverlap allow overlapping bed regions when resampling bed_table
 #' @param genomev hg19 or hg38
 #' @param samplingRegions supply your own sampling regions for resampling positions and/or bed_table.
 #' @param randomSeed set a random seed for the resampling 
+#' @param returnResampledPositions if TRUE and if resampling of positions was performed, return a list with all the positions data frames resampled
+#' @param returnResampledBedRegions if TRUE and if resampling of bed regions was performed, return a list with all the bed_tables data frames resampled
+#' @param resampled_positions_list supply your own resampled position tables. Use it only if you know what you are doing. Typically useful for multiple
+#' correlations testing so that the NULL distribution can be calculated only once
+#' @param resampled_bed_regions_list supply your own resampled bed tables. Use it only if you know what you are doing. Typically useful for multiple
+#' correlations testing so that the NULL distribution can be calculated only once 
 #' @param nparallel how many parallel processes to use when running the resampling 
-#' @return data frame of ordered positions
+#' @return object with correlation statistics and additional data
 #' @export
 correlatePositionsWithBedRegions <- function(positions,
                                              bed_table,
@@ -33,6 +41,10 @@ correlatePositionsWithBedRegions <- function(positions,
                                              genomev="hg19",
                                              samplingRegions=NULL,
                                              randomSeed=NULL,
+                                             returnResampledPositions=FALSE,
+                                             returnResampledBedRegions=FALSE,
+                                             resampled_positions_list=NULL,
+                                             resampled_bed_regions_list=NULL,
                                              nparallel=1){
   
   # check required columns
@@ -62,6 +74,27 @@ correlatePositionsWithBedRegions <- function(positions,
     message("[warning correlatePositionsWithBedRegions] both genomev and samplingRegions have been specified,",
             " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
     genomev <- NULL
+  }
+  
+  # checks on precomputed resampling
+  precomputed_resampled_positions_list <- NULL
+  if(!is.null(resampled_positions_list) & resamplePositionsFlag){
+    precomputed_resampled_positions_list <- resampled_positions_list
+    if(nsamples != length(precomputed_resampled_positions_list)){
+      message("[error correlatePositionsWithBedRegions] attempting to use precomputed resampled positions,",
+              " however nsamples and the length of resampled_positions_list differ.")
+      return(NULL)
+    }
+  }
+  
+  precomputed_resampled_bed_regions_list <- NULL
+  if(!is.null(resampled_bed_regions_list) & resampleBedRegionsFlag){
+    precomputed_resampled_bed_regions_list <- resampled_bed_regions_list
+    if(nsamples != length(precomputed_resampled_bed_regions_list)){
+      message("[error correlatePositionsWithBedRegions] attempting to use precomputed resampled bed regions,",
+              " however nsamples and the length of resampled_bed_regions_list differ.")
+      return(NULL)
+    }
   }
   
   # sort
@@ -104,6 +137,9 @@ correlatePositionsWithBedRegions <- function(positions,
                                             dimnames = list(rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses),1:nsamples))
   sampled_regionsAtPositionClasses <- array(dim = c(nrow(countsTable_regionsAtPositionClasses),ncol(countsTable_regionsAtPositionClasses),nsamples),
                                             dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses),1:nsamples))
+  resampled_positions_list <- list()
+  resampled_bed_regions_list <- list()
+  
   if(nsamples>0){
     message("[info correlatePositionsWithBedRegions] resampling... ")
     
@@ -118,22 +154,29 @@ correlatePositionsWithBedRegions <- function(positions,
     res_list <- foreach::foreach(i=1:nsamples) %dorng% {
       message("[info correlatePositionsWithBedRegions] resampling ",i," of ",nsamples)
       if(resamplePositionsFlag){
-        resampled_positions <- resamplePositions(positions = positions,
-                                                 genomev = genomev,
-                                                 randomSeed = NULL,
-                                                 samplingRegions = samplingRegions)
+        if(is.null(precomputed_resampled_positions_list)){
+          resampled_positions <- resamplePositions(positions = positions,
+                                                   genomev = genomev,
+                                                   randomSeed = NULL,
+                                                   samplingRegions = samplingRegions)
+        }else{
+          resampled_positions <- precomputed_resampled_positions_list[[i]]
+        }
       }else{
         resampled_positions <- positions
       }
 
       # I should resample the original regions and then extend
       if(resampleBedRegionsFlag){
-        resampled_bed_table <- resampleBedRegions(bed_table = bed_table,
-                                                  genomev = genomev,
-                                                  randomSeed = NULL,
-                                                  samplingRegions = samplingRegions,
-                                                  allowRegionsOverlap = resampleBedRegionsAllowOverlap)
-
+        if(is.null(precomputed_resampled_bed_regions_list)){
+          resampled_bed_table <- resampleBedRegions(bed_table = bed_table,
+                                                    genomev = genomev,
+                                                    randomSeed = NULL,
+                                                    samplingRegions = samplingRegions,
+                                                    allowRegionsOverlap = resampleBedRegionsAllowOverlap)
+        }else{
+          resampled_bed_table <- precomputed_resampled_bed_regions_list[[i]]
+        }
       }else{
         resampled_bed_table <- bed_table
       }
@@ -147,6 +190,8 @@ correlatePositionsWithBedRegions <- function(positions,
       returnObj$sampled_RegionsAtAnyPosition <- res_sample_assign$totalRegionsAtAnyPosition
       returnObj$sampled_positionsInRegionClasses <- as.matrix(res_sample_assign$countsTable_positionsInRegionClasses[rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses),drop=F])
       returnObj$sampled_regionsAtPositionClasses <- as.matrix(res_sample_assign$countsTable_regionsAtPositionClasses[rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses),drop=F])
+      if(resamplePositionsFlag & returnResampledPositions) returnObj$resampled_positions <- resampled_positions
+      if(resampleBedRegionsFlag & returnResampledBedRegions) returnObj$resampled_bed_table <- resampled_bed_table
       return(returnObj)
     }
     
@@ -157,7 +202,8 @@ correlatePositionsWithBedRegions <- function(positions,
       sampled_RegionsAtAnyPosition[i] <- res_list[[i]]$sampled_RegionsAtAnyPosition
       sampled_positionsInRegionClasses[,,i] <- res_list[[i]]$sampled_positionsInRegionClasses
       sampled_regionsAtPositionClasses[,,i] <- res_list[[i]]$sampled_regionsAtPositionClasses
-      
+      if(!is.null(res_list[[i]]$resampled_positions)) resampled_positions_list[[i]] <- res_list[[i]]$resampled_positions
+      if(!is.null(res_list[[i]]$resampled_bed_table)) resampled_bed_regions_list[[i]] <- res_list[[i]]$resampled_bed_table
     }
   }
   
@@ -276,6 +322,10 @@ correlatePositionsWithBedRegions <- function(positions,
     returnObj$median_regionsAtPositionClasses <- median_regionsAtPositionClasses
     returnObj$mean_regionsAtPositionClasses <- mean_regionsAtPositionClasses
     returnObj$sd_regionsAtPositionClasses <- sd_regionsAtPositionClasses
+    
+    # check if I need to return the resampled positions and/or bed regions
+    if(length(resampled_positions_list)>0) returnObj$resampled_positions_list <- resampled_positions_list
+    if(length(resampled_bed_regions_list)>0) returnObj$resampled_bed_regions_list <- resampled_bed_regions_list
   }
   return(returnObj)
 }
@@ -307,8 +357,14 @@ correlatePositionsWithBedRegions <- function(positions,
 #' @param genomev hg19 or hg38
 #' @param samplingRegions supply your own sampling regions for resampling positions and/or bed_table.
 #' @param randomSeed set a random seed for the resampling 
+#' @param returnResampledBedRegions1 if TRUE and if resampling of bed_table1 was performed, return a list with all the bed_table1 data frames resampled
+#' @param returnResampledBedRegions2 if TRUE and if resampling of bed_table2 was performed, return a list with all the bed_table2 data frames resampled
+#' @param resampled_bed_regions1_list supply your own resampled bed_table1. Use it only if you know what you are doing. Typically useful for multiple
+#' correlations testing so that the NULL distribution can be calculated only once
+#' @param resampled_bed_regions2_list supply your own resampled bed_table2. Use it only if you know what you are doing. Typically useful for multiple
+#' correlations testing so that the NULL distribution can be calculated only once 
 #' @param nparallel how many parallel processes to use when running the resampling 
-#' @return data frame of ordered positions
+#' @return object with correlation statistics and additional data
 #' @export
 correlateBedRegions <- function(bed_table1,
                                 bed_table2,
@@ -321,6 +377,10 @@ correlateBedRegions <- function(bed_table1,
                                 genomev="hg19",
                                 samplingRegions=NULL,
                                 randomSeed=NULL,
+                                returnResampledBedRegions1=FALSE,
+                                returnResampledBedRegions2=FALSE,
+                                resampled_bed_regions1_list=NULL,
+                                resampled_bed_regions2_list=NULL,
                                 nparallel=1){
   
   # check required columns
@@ -346,9 +406,30 @@ correlateBedRegions <- function(bed_table1,
   
   # check if both genomev and samplingRegions have been specified and give a warning
   if(!is.null(genomev) & !is.null(samplingRegions)){
-    message("[warning correlatePositionsWithBedRegions] both genomev and samplingRegions have been specified,",
+    message("[warning correlateBedRegions] both genomev and samplingRegions have been specified,",
             " genomev will be ignore and the samplingRegions table will be used to sample the positions.")
     genomev <- NULL
+  }
+  
+  # checks on precomputed resampling
+  precomputed_resampled_bed_regions1_list <- NULL
+  if(!is.null(resampled_bed_regions1_list) & resampleBedRegions1Flag){
+    precomputed_resampled_bed_regions1_list <- resampled_bed_regions1_list
+    if(nsamples != length(precomputed_resampled_bed_regions1_list)){
+      message("[error correlateBedRegions] attempting to use precomputed resampled bed regions of bed_table1,",
+              " however nsamples and the length of resampled_bed_regions1_list differ.")
+      return(NULL)
+    }
+  }
+  
+  precomputed_resampled_bed_regions2_list <- NULL
+  if(!is.null(resampled_bed_regions2_list) & resampleBedRegions2Flag){
+    precomputed_resampled_bed_regions2_list <- resampled_bed_regions2_list
+    if(nsamples != length(precomputed_resampled_bed_regions2_list)){
+      message("[error correlateBedRegions] attempting to use precomputed resampled bed regions of bed_table2,",
+              " however nsamples and the length of resampled_bed_regions2_list differ.")
+      return(NULL)
+    }
   }
   
   # sort
@@ -391,6 +472,8 @@ correlateBedRegions <- function(bed_table1,
                                                      dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes),1:nsamples))
   sampled_regions2overlappingRegion1classes <-  array(dim = c(nrow(countsTable_regions2overlappingRegion1classes),ncol(countsTable_regions2overlappingRegion1classes),nsamples),
                                                       dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes),1:nsamples))
+  resampled_bed_regions1_list <- list()
+  resampled_bed_regions2_list <- list()
   if(nsamples>0){
     message("[info correlateBedRegions] resampling... ")
     
@@ -406,23 +489,29 @@ correlateBedRegions <- function(bed_table1,
       message("[info correlateBedRegions] resampling ",i," of ",nsamples)
       
       if(resampleBedRegions1Flag){
-        resampled_bed_table1 <- resampleBedRegions(bed_table = bed_table1,
-                                                   genomev = genomev,
-                                                   randomSeed = NULL,
-                                                   samplingRegions = samplingRegions,
-                                                   allowRegionsOverlap = resampleBedRegions1AllowOverlap)
-        
+        if(is.null(precomputed_resampled_bed_regions1_list)){
+          resampled_bed_table1 <- resampleBedRegions(bed_table = bed_table1,
+                                                     genomev = genomev,
+                                                     randomSeed = NULL,
+                                                     samplingRegions = samplingRegions,
+                                                     allowRegionsOverlap = resampleBedRegions1AllowOverlap)
+        }else{
+          resampled_bed_table1 <- precomputed_resampled_bed_regions1_list[[i]]
+        }
       }else{
         resampled_bed_table1 <- bed_table1
       }
       
       if(resampleBedRegions2Flag){
-        resampled_bed_table2 <- resampleBedRegions(bed_table = bed_table2,
-                                                  genomev = genomev,
-                                                  randomSeed = NULL,
-                                                  samplingRegions = samplingRegions,
-                                                  allowRegionsOverlap = resampleBedRegions2AllowOverlap)
-        
+        if(is.null(precomputed_resampled_bed_regions1_list)){
+          resampled_bed_table2 <- resampleBedRegions(bed_table = bed_table2,
+                                                    genomev = genomev,
+                                                    randomSeed = NULL,
+                                                    samplingRegions = samplingRegions,
+                                                    allowRegionsOverlap = resampleBedRegions2AllowOverlap)
+        }else{
+          resampled_bed_table2 <- precomputed_resampled_bed_regions2_list[[i]]
+        }
       }else{
         resampled_bed_table2 <- bed_table2
       }
@@ -436,6 +525,8 @@ correlateBedRegions <- function(bed_table1,
       returnObj$sampled_Regions2overlappingAnyRegion1 <- res_sample_assign$totalRegions2overlappingAnyRegion1
       returnObj$sampled_regions1overlappingRegion2classes <- as.matrix(res_sample_assign$countsTable_regions1overlappingRegion2classes[rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes),drop=F])
       returnObj$sampled_regions2overlappingRegion1classes <- as.matrix(res_sample_assign$countsTable_regions2overlappingRegion1classes[rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes),drop=F])
+      if(resampleBedRegions1Flag & returnResampledBedRegions1) returnObj$resampled_bed_table1 <- resampled_bed_table1
+      if(resampleBedRegions2Flag & returnResampledBedRegions2) returnObj$resampled_bed_table2 <- resampled_bed_table2
       return(returnObj)
     }
     
@@ -446,7 +537,8 @@ correlateBedRegions <- function(bed_table1,
       sampled_Regions2overlappingAnyRegion1[i] <- res_list[[i]]$sampled_Regions2overlappingAnyRegion1
       sampled_regions1overlappingRegion2classes[,,i] <- res_list[[i]]$sampled_regions1overlappingRegion2classes
       sampled_regions2overlappingRegion1classes[,,i] <- res_list[[i]]$sampled_regions2overlappingRegion1classes
-      
+      if(!is.null(res_list[[i]]$resampled_bed_table1)) resampled_bed_regions1_list[[i]] <- res_list[[i]]$resampled_bed_table1
+      if(!is.null(res_list[[i]]$resampled_bed_table2)) resampled_bed_regions2_list[[i]] <- res_list[[i]]$resampled_bed_table2
     }
   }
   
@@ -565,6 +657,10 @@ correlateBedRegions <- function(bed_table1,
     returnObj$median_regions2overlappingRegion1classes <- median_regions2overlappingRegion1classes
     returnObj$mean_regions2overlappingRegion1classes <- mean_regions2overlappingRegion1classes
     returnObj$sd_regions2overlappingRegion1classes <- sd_regions2overlappingRegion1classes
+    
+    # check if I need to return the resampled positions and/or bed regions
+    if(length(resampled_bed_regions1_list)>0) returnObj$resampled_bed_regions1_list <- resampled_bed_regions1_list
+    if(length(resampled_bed_regions2_list)>0) returnObj$resampled_bed_regions2_list <- resampled_bed_regions2_list
   }
   return(returnObj)
 }
