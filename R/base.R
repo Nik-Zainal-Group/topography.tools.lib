@@ -5,6 +5,22 @@ NULL
 #' @importFrom doRNG %dorng%
 NULL
 
+getEntitiesType <- function(entities){
+  colnamesPositions <- c("chr","position")
+  colnamesBedRegions <- c("chr","start","end")
+  isPositions <- all(colnamesPositions %in% colnames(entities))
+  isBedRegions <- all(colnamesBedRegions %in% colnames(entities))
+  if(isPositions & isBedRegions){
+    return("ambiguous")
+  }else if(isPositions){
+    return("positions")
+  }else if(isBedRegions){
+    return("bedRegions")
+  }else{
+    return("unknown")
+  }
+}
+
 #' Sort chromosomes
 #'
 #' Sort a list of chromosome names.

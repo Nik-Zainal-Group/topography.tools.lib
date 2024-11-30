@@ -205,3 +205,49 @@ test_that("test correlateBedRegions with classes and reuse resampling", {
   expect_equal(res_obj$sampled_Regions1overlappingAnyRegion2,res_obj2$sampled_Regions1overlappingAnyRegion2)
 
 })
+
+
+
+test_that("test multipleCorrelations", {
+  bed_table1 <- data.frame(chr = c(1,1,1),
+                           start = c(100,220,300),
+                           end = c(150,350,420),
+                           id=paste0("x",c(1,2,3)),
+                           class=c("A","B","B"),
+                           stringsAsFactors = F)
+  bed_table2 <- data.frame(chr = c(1,1,1,1),
+                           start = c(200,320,450,230),
+                           end = c(500,400,550,250),
+                           id=paste0("y",c(1,2,3,4)),
+                           class=c("M","M","N","N"),
+                           stringsAsFactors = F)
+  bed_table3 <- data.frame(chr = c(1,1,1),
+                           start = c(200,1200,1100),
+                           end = c(500,1600,1300),
+                           id=paste0("z",c(1,2,3)),
+                           class=c("E","E","F"),
+                           stringsAsFactors = F)
+  samplingRegions <- data.frame(chr=c(1,1),
+                                start=c(1,2001),
+                                end=c(2000,4000),
+                                stringsAsFactors = F)
+  
+  expected_summaryOverlaps <- data.frame(row.names = "bed1",
+                                         bed2=2,
+                                         bed3=2,
+                                         total=3,
+                                         stringsAsFactors = F)
+  
+  res_obj <- multipleCorrelations(referenceEntities = bed_table1,
+                                  compareEntitiesList = list(bed2=bed_table2,bed3=bed_table3),
+                                  referenceEntitiesName = "bed1",
+                                  resampleCompareEntities = FALSE,
+                                  resampleReferenceEntitiesAllowOverlap = TRUE,
+                                  samplingRegions = samplingRegions,
+                                  genomev = NULL,
+                                  nsamples = 100)
+  
+  expect_equal(res_obj$counts_refEntitiesWithCompEntities,expected_summaryOverlaps)
+  expect_true(!is.null(res_obj$pvalues_refEntitiesWithCompEntities))
+  
+})

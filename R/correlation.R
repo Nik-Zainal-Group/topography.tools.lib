@@ -666,6 +666,342 @@ correlateBedRegions <- function(bed_table1,
 }
 
 
+#' Multiple correlations between positions and/or regions
+#'
+#' Given a table with a set of reference entities, which are either positions or
+#' bed regions, calculate the correlation with a list of other entities, which
+#' again can be positions and/or regions. The type of the entities, either positions
+#' or bed regions, will be determined automatically by checking the column names,
+#' where positions should have column names chr and position, while bed regions
+#' should have column names chr, start and end. Statistical significance of the
+#' intersection between the reference entities and other entities sets will be
+#' determined by resampling the reference entities, and optionally also the entities
+#' to compare to.
+#' 
+#' 
+#' @param referenceEntities data frame of positions or bed regions. If positions are used,
+#' required columns are id, chr and position. If bed regions are used, required columns are
+#' id, chr, start and end.
+#' @param compareEntitiesList list of data frames, with each data frame either a table of positions
+#' or bed regions. The list names will be used as the name of each entities set
+#' @param referenceEntitiesName name to be use when referring to the reference entities
+#' @param nsamples number of resampling used to determine the NULL distribution
+#' @param altHypothesis greatherthan (the default) or lowerthan can be used 
+#' @param resampleCompareEntities if TRUE the compare entities will be resampled
+#' @param resampleReferenceEntitiesAllowOverlap if TRUE and if the reference entities are
+#' bed regions, the resampling will allow bed regions overlap
+#' @param resampleCompareEntitiesAllowOverlap  if TRUE and if the compare entities are
+#' bed regions, the resampling will allow bed regions overlap
+#' @param genomev hg19 or hg38
+#' @param samplingRegions supply your own sampling regions for resampling positions and/or bed_table.
+#' @param randomSeed set a random seed for the resampling 
+#' @param nparallel how many parallel processes to use when running the resampling 
+#' @return correlation statistics and annotations
+#' @export
+multipleCorrelations <- function(referenceEntities,
+                                 compareEntitiesList,
+                                 referenceEntitiesName = "referenceEntities",
+                                 nsamples = 0,
+                                 altHypothesis="greaterthan",
+                                 resampleCompareEntities=FALSE,
+                                 resampleReferenceEntitiesAllowOverlap = TRUE,
+                                 resampleCompareEntitiesAllowOverlap = TRUE,
+                                 genomev = "hg19",
+                                 samplingRegions = NULL,
+                                 randomSeed = NULL,
+                                 nparallel = 1){
+  
+  # check type of referenceEntities
+  etype <- getEntitiesType(entities = referenceEntities)
+  if(etype=="ambiguous" | etype=="unknown"){
+    message("[error multipleCorrelations] referenceEntities type is ",etype,". ",
+            "Please make sure it is either a positions table, with columns chr and position, ",
+            "or a bed table, with columns chr, start, end.")
+    return("NULL")
+  }
+  
+  # if we are resampling, let's do it once only for the reference
+  resampled_referenceEntities <- NULL
+  if(nsamples>0) {
+    # set RNGkind to avoid warning
+    RNGkind("L'Ecuyer-CMRG")
+    doParallel::registerDoParallel(nparallel)
+    if(!is.null(randomSeed)){
+      # set random seed now so no need to set it later
+      doRNG::registerDoRNG(randomSeed)
+    }
+    
+    if(etype=="positions"){
+      resampled_referenceEntities <- foreach::foreach(i=1:nsamples) %dorng% {
+        return(resamplePositions(positions = referenceEntities,
+                                 genomev = genomev,
+                                 samplingRegions = samplingRegions,
+                                 randomSeed = NULL,
+                                 verbose = FALSE))
+      }
+    }else if(etype=="bedRegions"){
+      resampled_referenceEntities <- foreach::foreach(i=1:nsamples) %dorng% {
+        return(resampleBedRegions(bed_table = referenceEntities,
+                                  genomev = genomev,
+                                  samplingRegions = samplingRegions,
+                                  randomSeed = NULL,
+                                  allowRegionsOverlap = resampleReferenceEntitiesAllowOverlap,
+                                  verbose = FALSE))
+      }
+    }else{
+      message("[error multipleCorrelations] cannot resample referenceEntities, type ",etype,
+              " not implemented.")
+      return(NULL)
+    }
 
+  }
+  
+  # set things up
+  annotatedEntities <- referenceEntities
+  annotatedCompareEntitiesList <- list()
+  counts_refEntitiesWithCompEntities <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList)),nrow(referenceEntities)),
+                                                             nrow = 1,ncol = length(compareEntitiesList) + 1,
+                                                             dimnames = list(referenceEntitiesName,c(names(compareEntitiesList),"total"))),
+                                                      stringsAsFactors = F)
+  expected_refEntitiesWithCompEntities <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList)),nrow(referenceEntities)),
+                                                               nrow = 1,ncol = length(compareEntitiesList) + 1,
+                                                               dimnames = list(referenceEntitiesName,c(names(compareEntitiesList),"total"))),
+                                                        stringsAsFactors = F)
+  pvalues_refEntitiesWithCompEntities <- as.data.frame(matrix(NA,nrow = 1,ncol = length(compareEntitiesList),
+                                                              dimnames = list(referenceEntitiesName,names(compareEntitiesList))),
+                                                       stringsAsFactors = F)
+  counts_compEntitiesWithRefEntities <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList)*2)),
+                                                             nrow = length(compareEntitiesList),ncol = 2,
+                                                             dimnames = list(names(compareEntitiesList),c(referenceEntitiesName,"total"))),
+                                                      stringsAsFactors = F)
+  expected_compEntitiesWithRefEntities <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList)*2)),
+                                                               nrow = length(compareEntitiesList),ncol = 2,
+                                                               dimnames = list(names(compareEntitiesList),c(referenceEntitiesName,"total"))),
+                                                        stringsAsFactors = F)
+  pvalues_compEntitiesWithRefEntities <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList))),
+                                                              nrow = length(compareEntitiesList),ncol = 1,
+                                                              dimnames = list(names(compareEntitiesList),c(referenceEntitiesName))),
+                                                       stringsAsFactors = F)
+  
+  for(CE in names(compareEntitiesList)){
+    # CE <- names(compareEntitiesList)[1]
+    currente <- compareEntitiesList[[CE]]
+    cetype <- getEntitiesType(entities = currente)
+    if(cetype=="ambiguous" | cetype=="unknown"){
+      message("[warning multipleCorrelations] skipping compare entities ",CE,". ",
+              "Entities type is ",cetype,". ",
+              "Please make sure it is either a positions table, with columns chr and position, ",
+              "or a bed table, with columns chr, start, end.")
+    }else if(etype=="positions" & cetype=="positions"){
+      message("[warning multipleCorrelations] skipping compare entities ",CE,". ",
+              "Both referenceEntities and compare entities ",CE," entities type is positions. ")
+    }else{
+      if(etype=="positions"){
+        # then the cetype must be bedRegions
+        
+        res_corr_pos_extend <- correlatePositionsWithBedRegions(positions = annotatedEntities,
+                                                                bed_table = currente,
+                                                                resamplePositionsFlag = TRUE,
+                                                                resampleBedRegionsFlag = resampleCompareEntities,
+                                                                resampleBedRegionsAllowOverlap = resampleCompareEntitiesAllowOverlap,
+                                                                resampled_positions_list = resampled_referenceEntities,
+                                                                genomev = genomev,
+                                                                nsamples = nsamples,
+                                                                altHypothesis = altHypothesis,
+                                                                samplingRegions = samplingRegions,
+                                                                nparallel = nparallel,
+                                                                randomSeed = randomSeed)
+        # update annotated reference entities
+        annotatedEntities <- res_corr_pos_extend$annotatedPositions
+        annotatedEntities$classAnnotation <- NULL
+        colnames(annotatedEntities)[which(colnames(annotatedEntities)=="nMatches")] <- paste0("n",CE)
+        colnames(annotatedEntities)[which(colnames(annotatedEntities)=="idAnnotation")] <- CE
+        # save some info
+        # - annotated positions
+        annotatedBedRegions <- res_corr_pos_extend$annotatedBedRegions
+        annotatedBedRegions$classAnnotation <- NULL
+        colnames(annotatedBedRegions)[which(colnames(annotatedBedRegions)=="nMatches")] <- paste0("n",referenceEntitiesName)
+        colnames(annotatedBedRegions)[which(colnames(annotatedBedRegions)=="idAnnotation")] <- referenceEntitiesName
+        # - summary overlaps
+        summaryOverlaps <- res_corr_pos_extend$summaryOverlaps
+        rownames(summaryOverlaps) <- c(referenceEntitiesName,CE)
+        # some info about significance
+        if(nsamples>0){
+          # - p-values
+          pvalue1 <- ifelse(res_corr_pos_extend$pvalue_RegionsAtAnyPosition==0,paste0("<",1/nsamples),res_corr_pos_extend$pvalue_RegionsAtAnyPosition)
+          pvalue2 <- ifelse(res_corr_pos_extend$pvalue_PostionsInAnyRegion==0,paste0("<",1/nsamples),res_corr_pos_extend$pvalue_PostionsInAnyRegion)
+          significanceTable <- data.frame(nsamples=res_corr_pos_extend$nsamples,
+                                          pvalueRefEntities=pvalue2,
+                                          pvalueCompEntities=pvalue1,
+                                          stringsAsFactors = F)
+          colnames(significanceTable)[2] <- paste0("pvalueOverlapping",referenceEntitiesName)
+          colnames(significanceTable)[3] <- paste0("pvalueOverlapping",CE)
+          # - expected overlaps
+          expectedOverlaps <- data.frame(nsamples=res_corr_pos_extend$nsamples,
+                                         expectedRefEntities=res_corr_pos_extend$mean_PostionsInAnyRegion,
+                                         expectedCompEntities=res_corr_pos_extend$mean_RegionsAtAnyPosition,
+                                         stringsAsFactors = F)
+          colnames(expectedOverlaps)[2] <- paste0("expectedOverlapping",referenceEntitiesName)
+          colnames(expectedOverlaps)[3] <- paste0("expectedOverlapping",CE)
+        }
+        
+        # collect
+        annotatedCompareEntitiesList[[CE]] <- annotatedBedRegions
+        counts_refEntitiesWithCompEntities[1,CE] <- summaryOverlaps[1,1]
+        counts_compEntitiesWithRefEntities[CE,1] <- summaryOverlaps[2,1]
+        if(nsamples>0){
+          expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
+          pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
+          expected_compEntitiesWithRefEntities[CE,1] <- expectedOverlaps[1,3]
+          pvalues_compEntitiesWithRefEntities[CE,1] <- significanceTable[1,3]
+          counts_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
+          expected_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
+        }
+      }else{
+        # then etype is bedRegions and cetype can be positions or bedRegions
+        if(cetype=="positions"){
+
+          res_corr_pos_extend <- correlatePositionsWithBedRegions(positions = currente,
+                                                                  bed_table = annotatedEntities,
+                                                                  resamplePositionsFlag = resampleCompareEntities,
+                                                                  resampleBedRegionsFlag = TRUE,
+                                                                  resampleBedRegionsAllowOverlap = resampleReferenceEntitiesAllowOverlap,
+                                                                  resampled_bed_regions_list = resampled_referenceEntities,
+                                                                  genomev = genomev,
+                                                                  nsamples = nsamples,
+                                                                  altHypothesis = altHypothesis,
+                                                                  samplingRegions = samplingRegions,
+                                                                  nparallel = nparallel,
+                                                                  randomSeed = randomSeed)
+          # update annotated reference entities
+          annotatedEntities <- res_corr_pos_extend$annotatedBedRegions
+          annotatedEntities$classAnnotation <- NULL
+          colnames(annotatedEntities)[which(colnames(annotatedEntities)=="nMatches")] <- paste0("n",CE)
+          colnames(annotatedEntities)[which(colnames(annotatedEntities)=="idAnnotation")] <- CE
+          # save some info
+          # - annotated positions
+          annotatedPositions <- res_corr_pos_extend$annotatedPositions
+          annotatedPositions$classAnnotation <- NULL
+          colnames(annotatedPositions)[which(colnames(annotatedPositions)=="nMatches")] <- paste0("n",referenceEntitiesName)
+          colnames(annotatedPositions)[which(colnames(annotatedPositions)=="idAnnotation")] <- referenceEntitiesName
+          # - summary overlaps
+          summaryOverlaps <- res_corr_pos_extend$summaryOverlaps
+          rownames(summaryOverlaps) <- c(CE,referenceEntitiesName)
+          # some info about significance
+          if(nsamples>0){
+            # - p-values
+            pvalue1 <- ifelse(res_corr_pos_extend$pvalue_RegionsAtAnyPosition==0,paste0("<",1/nsamples),res_corr_pos_extend$pvalue_RegionsAtAnyPosition)
+            pvalue2 <- ifelse(res_corr_pos_extend$pvalue_PostionsInAnyRegion==0,paste0("<",1/nsamples),res_corr_pos_extend$pvalue_PostionsInAnyRegion)
+            significanceTable <- data.frame(nsamples=res_corr_pos_extend$nsamples,
+                                            pvalueRefEntitiesWithPositions=pvalue1,
+                                            pvaluePositionsInAnyHotspot=pvalue2,
+                                            stringsAsFactors = F)
+            colnames(significanceTable)[2] <- paste0("pvalueOverlapping",referenceEntitiesName)
+            colnames(significanceTable)[3] <- paste0("pvalueOverlapping",CE)
+            # - expected overlaps
+            expectedOverlaps <- data.frame(nsamples=res_corr_pos_extend$nsamples,
+                                           expectedRefEntitiesWithPositions=res_corr_pos_extend$mean_RegionsAtAnyPosition,
+                                           expectedPositionsInAnyHotspot=res_corr_pos_extend$mean_PostionsInAnyRegion,
+                                           stringsAsFactors = F)
+            colnames(expectedOverlaps)[2] <- paste0("expectedOverlapping",referenceEntitiesName)
+            colnames(expectedOverlaps)[3] <- paste0("expectedOverlapping",CE)
+          }
+          
+          # collect
+          annotatedCompareEntitiesList[[CE]] <- annotatedPositions
+          counts_refEntitiesWithCompEntities[1,CE] <- summaryOverlaps[1,1]
+          counts_compEntitiesWithRefEntities[CE,1] <- summaryOverlaps[2,1]
+          if(nsamples>0){
+            expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
+            pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
+            expected_compEntitiesWithRefEntities[CE,1] <- expectedOverlaps[1,3]
+            pvalues_compEntitiesWithRefEntities[CE,1] <- significanceTable[1,3]
+            counts_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
+            expected_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
+          }
+        }else{
+          # cetype=="bedRegions"
+          
+          res_corr_extend <- correlateBedRegions(bed_table1 = annotatedEntities,
+                                                 bed_table2 = currente,
+                                                 resampleBedRegions1Flag = TRUE,
+                                                 resampleBedRegions2Flag = resampleCompareEntities,
+                                                 resampleBedRegions1AllowOverlap = resampleReferenceEntitiesAllowOverlap,
+                                                 resampleBedRegions2AllowOverlap = resampleCompareEntitiesAllowOverlap,
+                                                 resampled_bed_regions1_list = resampled_referenceEntities,
+                                                 genomev = genomev,
+                                                 nsamples = nsamples,
+                                                 altHypothesis = altHypothesis,
+                                                 samplingRegions = samplingRegions,
+                                                 nparallel = nparallel,
+                                                 randomSeed = randomSeed)
+          # update annotated reference entities
+          annotatedEntities <- res_corr_extend$annotatedBedRegions1
+          annotatedEntities$classAnnotation <- NULL
+          colnames(annotatedEntities)[which(colnames(annotatedEntities)=="nMatches")] <- paste0("n",CE)
+          colnames(annotatedEntities)[which(colnames(annotatedEntities)=="idAnnotation")] <- CE
+          # save some info
+          # - annotated regions
+          annotatedRegions <- res_corr_extend$annotatedBedRegions2
+          annotatedRegions$classAnnotation <- NULL
+          colnames(annotatedRegions)[which(colnames(annotatedRegions)=="nMatches")] <- paste0("n",referenceEntitiesName)
+          colnames(annotatedRegions)[which(colnames(annotatedRegions)=="idAnnotation")] <- referenceEntitiesName
+          # - summary overlaps
+          summaryOverlaps <- res_corr_extend$summaryOverlaps
+          rownames(summaryOverlaps) <- c(referenceEntitiesName,CE)
+          # some info about significance
+          if(nsamples>0){
+            # - p-values
+            pvalue1 <- ifelse(res_corr_extend$pvalue_Regions1overlappingAnyRegion2==0,paste0("<",1/nsamples),res_corr_extend$pvalue_Regions1overlappingAnyRegion2)
+            pvalue2 <- ifelse(res_corr_extend$pvalue_Regions2overlappingAnyRegion1==0,paste0("<",1/nsamples),res_corr_extend$pvalue_Regions2overlappingAnyRegion1)
+            significanceTable <- data.frame(nsamples=res_corr_extend$nsamples,
+                                            pvalueOverlappingRefEntities=pvalue1,
+                                            pvalueOverlappingRegions=pvalue2,
+                                            stringsAsFactors = F)
+            colnames(significanceTable)[2] <- paste0("pvalueOverlapping",referenceEntitiesName)
+            colnames(significanceTable)[3] <- paste0("pvalueOverlapping",CE)
+            # - expected overlaps
+            expectedOverlaps <- data.frame(nsamples=res_corr_extend$nsamples,
+                                           expectedOverlappingRefEntities=res_corr_extend$mean_Regions1overlappingAnyRegion2,
+                                           expectedOverlappingRegions=res_corr_extend$mean_Regions2overlappingAnyRegion1,
+                                           stringsAsFactors = F)
+            colnames(expectedOverlaps)[2] <- paste0("expectedOverlapping",referenceEntitiesName)
+            colnames(expectedOverlaps)[3] <- paste0("expectedOverlapping",CE)
+          }
+          
+          # collect
+          annotatedCompareEntitiesList[[CE]] <- annotatedRegions
+          counts_refEntitiesWithCompEntities[1,CE] <- summaryOverlaps[1,1]
+          counts_compEntitiesWithRefEntities[CE,1] <- summaryOverlaps[2,1]
+          if(nsamples>0){
+            expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
+            pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
+            expected_compEntitiesWithRefEntities[CE,1] <- expectedOverlaps[1,3]
+            pvalues_compEntitiesWithRefEntities[CE,1] <- significanceTable[1,3]
+            counts_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
+            expected_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
+          }
+        }
+      }
+    }
+    
+    
+  }  
+  
+  # finalise return object
+  returnObj <- list()
+  returnObj$nsamples <- nsamples
+  returnObj$annotatedEntities <- annotatedEntities
+  returnObj$annotatedCompareEntitiesList <- annotatedCompareEntitiesList
+  returnObj$counts_refEntitiesWithCompEntities <- counts_refEntitiesWithCompEntities
+  returnObj$counts_compEntitiesWithRefEntities <- counts_compEntitiesWithRefEntities
+  if(nsamples>0){
+    returnObj$expected_refEntitiesWithCompEntities <- expected_refEntitiesWithCompEntities
+    returnObj$pvalues_refEntitiesWithCompEntities <- pvalues_refEntitiesWithCompEntities
+    returnObj$expected_compEntitiesWithRefEntities <- expected_compEntitiesWithRefEntities
+    returnObj$pvalues_compEntitiesWithRefEntities <- pvalues_compEntitiesWithRefEntities
+  }
+  return(returnObj)
+}
 
 
