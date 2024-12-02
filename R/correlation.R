@@ -723,6 +723,7 @@ multipleCorrelations <- function(referenceEntities,
   # if we are resampling, let's do it once only for the reference
   resampled_referenceEntities <- NULL
   if(nsamples>0) {
+    message("[info multipleCorrelations] resampling referenceEntities...")
     # set RNGkind to avoid warning
     RNGkind("L'Ecuyer-CMRG")
     doParallel::registerDoParallel(nparallel)
@@ -782,9 +783,11 @@ multipleCorrelations <- function(referenceEntities,
                                                               nrow = length(compareEntitiesList),ncol = 1,
                                                               dimnames = list(names(compareEntitiesList),c(referenceEntitiesName))),
                                                        stringsAsFactors = F)
-  
+  cei <- 0
   for(CE in names(compareEntitiesList)){
     # CE <- names(compareEntitiesList)[1]
+    cei <- cei+1
+    message("[info multipleCorrelations] testing correlation with ",CE,", ",cei," of ",length(compareEntitiesList))
     currente <- compareEntitiesList[[CE]]
     cetype <- getEntitiesType(entities = currente)
     if(cetype=="ambiguous" | cetype=="unknown"){
