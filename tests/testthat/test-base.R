@@ -151,6 +151,31 @@ test_that("test mergeAdjacentBedRegions", {
   
 })
 
+test_that("test mergeAdjacentBedRegions with signal", {
+  
+  bed_table <- data.frame(chr=c(1,1,2),
+                          start=c(1,11,10),
+                          end=c(10,15,15),
+                          id=c("A","B","C"),
+                          signal=c(2,1,1),
+                          stringsAsFactors = F)
+  expect_merge <- data.frame(id=c("A;B","C"),
+                             chr=c("1","2"),
+                             start=c(1,10),
+                             end=c(15,15),
+                             signal=c(5/3,1),
+                             stringsAsFactors = F)
+  
+  bed_table_merged <- mergeAdjacentBedRegions(bed_table,
+                                              aggregateSignalMode="weightedmean")
+  
+  rownames(expect_merge) <- c(1,nrow(expect_merge))
+  rownames(bed_table_merged) <- c(1,nrow(bed_table_merged))
+  
+  expect_equal(bed_table_merged,expect_merge)
+  
+})
+
 test_that("test getChromosomesBedTable", {
   
   chrTable <- getChromosomesBedTable(genomev = "hg19")

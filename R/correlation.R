@@ -827,7 +827,6 @@ multipleCorrelations <- function(referenceEntities,
         colnames(annotatedBedRegions)[which(colnames(annotatedBedRegions)=="idAnnotation")] <- referenceEntitiesName
         # - summary overlaps
         summaryOverlaps <- res_corr_pos_extend$summaryOverlaps
-        rownames(summaryOverlaps) <- c(referenceEntitiesName,CE)
         # some info about significance
         if(nsamples>0){
           # - p-values
@@ -837,15 +836,11 @@ multipleCorrelations <- function(referenceEntities,
                                           pvalueRefEntities=pvalue2,
                                           pvalueCompEntities=pvalue1,
                                           stringsAsFactors = F)
-          colnames(significanceTable)[2] <- paste0("pvalueOverlapping",referenceEntitiesName)
-          colnames(significanceTable)[3] <- paste0("pvalueOverlapping",CE)
           # - expected overlaps
           expectedOverlaps <- data.frame(nsamples=res_corr_pos_extend$nsamples,
                                          expectedRefEntities=res_corr_pos_extend$mean_PostionsInAnyRegion,
                                          expectedCompEntities=res_corr_pos_extend$mean_RegionsAtAnyPosition,
                                          stringsAsFactors = F)
-          colnames(expectedOverlaps)[2] <- paste0("expectedOverlapping",referenceEntitiesName)
-          colnames(expectedOverlaps)[3] <- paste0("expectedOverlapping",CE)
         }
         
         # collect
@@ -889,7 +884,6 @@ multipleCorrelations <- function(referenceEntities,
           colnames(annotatedPositions)[which(colnames(annotatedPositions)=="idAnnotation")] <- referenceEntitiesName
           # - summary overlaps
           summaryOverlaps <- res_corr_pos_extend$summaryOverlaps
-          rownames(summaryOverlaps) <- c(CE,referenceEntitiesName)
           # some info about significance
           if(nsamples>0){
             # - p-values
@@ -899,15 +893,11 @@ multipleCorrelations <- function(referenceEntities,
                                             pvalueRefEntitiesWithPositions=pvalue1,
                                             pvaluePositionsInAnyHotspot=pvalue2,
                                             stringsAsFactors = F)
-            colnames(significanceTable)[2] <- paste0("pvalueOverlapping",referenceEntitiesName)
-            colnames(significanceTable)[3] <- paste0("pvalueOverlapping",CE)
             # - expected overlaps
             expectedOverlaps <- data.frame(nsamples=res_corr_pos_extend$nsamples,
                                            expectedRefEntitiesWithPositions=res_corr_pos_extend$mean_RegionsAtAnyPosition,
                                            expectedPositionsInAnyHotspot=res_corr_pos_extend$mean_PostionsInAnyRegion,
                                            stringsAsFactors = F)
-            colnames(expectedOverlaps)[2] <- paste0("expectedOverlapping",referenceEntitiesName)
-            colnames(expectedOverlaps)[3] <- paste0("expectedOverlapping",CE)
           }
           
           # collect
@@ -951,7 +941,6 @@ multipleCorrelations <- function(referenceEntities,
           colnames(annotatedRegions)[which(colnames(annotatedRegions)=="idAnnotation")] <- referenceEntitiesName
           # - summary overlaps
           summaryOverlaps <- res_corr_extend$summaryOverlaps
-          rownames(summaryOverlaps) <- c(referenceEntitiesName,CE)
           # some info about significance
           if(nsamples>0){
             # - p-values
@@ -961,15 +950,11 @@ multipleCorrelations <- function(referenceEntities,
                                             pvalueOverlappingRefEntities=pvalue1,
                                             pvalueOverlappingRegions=pvalue2,
                                             stringsAsFactors = F)
-            colnames(significanceTable)[2] <- paste0("pvalueOverlapping",referenceEntitiesName)
-            colnames(significanceTable)[3] <- paste0("pvalueOverlapping",CE)
             # - expected overlaps
             expectedOverlaps <- data.frame(nsamples=res_corr_extend$nsamples,
                                            expectedOverlappingRefEntities=res_corr_extend$mean_Regions1overlappingAnyRegion2,
                                            expectedOverlappingRegions=res_corr_extend$mean_Regions2overlappingAnyRegion1,
                                            stringsAsFactors = F)
-            colnames(expectedOverlaps)[2] <- paste0("expectedOverlapping",referenceEntitiesName)
-            colnames(expectedOverlaps)[3] <- paste0("expectedOverlapping",CE)
           }
           
           # collect

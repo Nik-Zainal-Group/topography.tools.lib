@@ -609,10 +609,13 @@ getIMD <- function(positions){
 #' start 11, end 15, the function returns the merged region with id "A;B", start 1, end 15.
 #' 
 #' 
-#' @param bed_table data frame with required columns: chr, start, end, id
+#' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
+#' @param aggregateSignalMode when merging bed regions that have a signal column,
+#' options for aggregating signal are sum, mean, or weightedmean (weighted w.r.t size)
 #' @return updated bed_table with merged adjacent regions
 #' @export
-mergeAdjacentBedRegions <- function(bed_table){
+mergeAdjacentBedRegions <- function(bed_table,
+                                    aggregateSignalMode="sum"){
   # check required columns
   requiredcolumns <- c("id","chr","start","end")
   if(!all(requiredcolumns %in% colnames(bed_table))){
@@ -627,6 +630,17 @@ mergeAdjacentBedRegions <- function(bed_table){
             "you can break them down using the function breakDownOverlappingBedRegions.")
     return(NULL)
   }
+  
+  acceptedSignalModes <- c("sum","mean","weightedmean")
+  # check aggregateSignalMode
+  if(!aggregateSignalMode %in% acceptedSignalModes){
+    message("[error mergeAdjacentBedRegions] invalid aggregateSignalMode, please use on of: ",paste(acceptedSignalModes,collapse = ", "))
+    return(NULL)
+  }
+  
+  # add signal to the required columns so we know we need to keep it
+  if("signal" %in% colnames(bed_table)) requiredcolumns <- c(requiredcolumns,"signal")
+  
   # now sort
   bed_table <- sortBed(bed_table = bed_table)
   # now merge
@@ -670,11 +684,27 @@ mergeAdjacentBedRegions <- function(bed_table){
           # ni <- 1
           n <- names(mergeGroups)[ni]
           mergeRows <- min(mergeGroups[[n]]):(max(mergeGroups[[n]])+1)
-          newTable <- rbind(newTable,data.frame(id=paste(chrTable[mergeRows,"id"],collapse = ";"),
-                                                chr=chrom,
-                                                start=min(chrTable[mergeRows,"start"]),
-                                                end=max(chrTable[mergeRows,"end"]),
-                                                stringsAsFactors = F))
+          newrow <- data.frame(id=paste(chrTable[mergeRows,"id"],collapse = ";"),
+                               chr=chrom,
+                               start=min(chrTable[mergeRows,"start"]),
+                               end=max(chrTable[mergeRows,"end"]),
+                               stringsAsFactors = F)
+          
+          # now add signal id necessary
+          if("signal" %in% requiredcolumns){
+            if(aggregateSignalMode=="sum"){
+              newrow$signal <- sum(chrTable[mergeRows,"signal"])
+            }else if(aggregateSignalMode=="mean"){
+              newrow$signal <- mean(chrTable[mergeRows,"signal"])
+            }else if(aggregateSignalMode=="weightedmean"){
+              sizes <- chrTable[mergeRows,"end"] - chrTable[mergeRows,"start"] + 1
+              newrow$signal <- as.vector(chrTable[mergeRows,"signal"] %*% sizes)/sum(sizes)
+            }
+          }
+          
+          # add to new table
+          newTable <- rbind(newTable,newrow)
+          
           # now I should check if there are rows to copy after the mergeGroups or in between
           if(ni==length(mergeGroups)){
             # ok we are at the end

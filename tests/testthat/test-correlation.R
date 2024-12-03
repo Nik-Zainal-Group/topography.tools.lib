@@ -233,13 +233,14 @@ test_that("test multipleCorrelations", {
                                 stringsAsFactors = F)
   
   expected_summaryOverlaps <- data.frame(row.names = "bed1",
+                                         bed1=3,
                                          bed2=2,
                                          bed3=2,
                                          total=3,
                                          stringsAsFactors = F)
   
   res_obj <- multipleCorrelations(referenceEntities = bed_table1,
-                                  compareEntitiesList = list(bed2=bed_table2,bed3=bed_table3),
+                                  compareEntitiesList = list(bed1=bed_table1,bed2=bed_table2,bed3=bed_table3),
                                   referenceEntitiesName = "bed1",
                                   resampleCompareEntities = FALSE,
                                   resampleReferenceEntitiesAllowOverlap = TRUE,
