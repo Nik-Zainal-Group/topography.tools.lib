@@ -353,3 +353,28 @@ test_that("test bedpeBreakpointsToPositions", {
   expect_equal(positions,positions_expected)
   
 })
+
+test_that("test trimBlacklistedFromBed", {
+  
+  bed_table <- data.frame(chr=c("1","1"),
+                          start=c(750000,800001),
+                          end=c(800000,850000),
+                          id=c("1","2"),
+                          class=c("c1","c2"),
+                          stringsAsFactors = F)
+  
+  expected_trimmed <- data.frame(chr=c("1","1","1"),
+                                 start=c(750101,800001,845201),
+                                 end=c(800000,814499,850000),
+                                 id=c("1","2","2"),
+                                 class=c("c1","c2","c2"),
+                                 stringsAsFactors = F)
+  
+  res_trim <- trimBlacklistedFromBed(bed_table = bed_table,
+                                     genomev = "hg19")
+  rownames(res_trim) <- 1:nrow(res_trim)
+  
+  expect_equal(expected_trimmed,res_trim)
+  
+})
+

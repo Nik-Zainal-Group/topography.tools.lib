@@ -1600,3 +1600,62 @@ bedpeBreakpointsToPositions <- function(sv_bedpe,
 }
 
 
+
+#' Remove segments that overlap with blacklisted regions from a bed table
+#'
+#' Given a bed table with a set of regions, trim the regions to remove segments that
+#' are blacklisted according to ENCODE or are outside the chromosome ranges.
+#' Bear in mind that each region might be split into multiple regions and this will
+#' results in multiple regions with the same value in the id column (and the class column if specified).
+#' 
+#' @param bed_table data frame with required columns: id, chr, start, end, and optionally class
+#' @param genomev hg19 or hg38
+#' @return trimmed bed regions
+#' @export
+trimBlacklistedFromBed <- function(bed_table,
+                                   genomev){
+  # check required columns
+  requiredcolumns <- c("id","chr","start","end")
+  if(!all(requiredcolumns %in% colnames(bed_table))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(bed_table))
+    message("[error trimBlacklistedFromBed] missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  # check overlaps
+  res_check <- checkBedRegionsOverlap(bed_table=bed_table)
+  if(!is.null(res_check)){
+    message("[error trimBlacklistedFromBed] bed_table regions should not overlap, ",
+            "you can break them down using the function breakDownOverlappingBedRegions.")
+    return(NULL)
+  }
+  
+  bed_table$id <- as.character(bed_table$id)
+  rownames(bed_table) <- bed_table$id
+  if(genomev=="hg19"){
+    mappableRegions <- samplingRegions_hg19
+  }else if(genomev=="hg38"){
+    mappableRegions <- samplingRegions_hg38
+  }else{
+    message("[error trimBlacklistedFromBed] invalid genomev. Use hg19 or hg38.")
+    return(NULL)
+  }
+  mappableRegions$id <- paste0("mappable_",1:nrow(mappableRegions))
+  
+  # combined_df <- cbind(bed_table[,c("id","chr","start","end"),drop=F],mappableRegions[,c("id","chr","start","end"),drop=F])
+  
+  res_bd <- intersectBed_nonOverlapping(bed_table1 = bed_table,
+                                        bed_table2 = mappableRegions[,c("id","chr","start","end"),drop=F],
+                                        computeStats = FALSE)
+  new_bed_table <- res_bd$intersectionTable[res_bd$intersectionTable$bedtable=="shared",,drop=F]
+  new_bed_table$id <- new_bed_table$segment1
+  if("class" %in% colnames(bed_table)){
+    new_bed_table$class <- bed_table[new_bed_table$segment1,"class"]
+    new_bed_table <- new_bed_table[,c("chr","start","end","id","class"),drop=F]
+  }else{
+    new_bed_table <- new_bed_table[,c("chr","start","end","id"),drop=F]
+  }
+  
+  return(new_bed_table)
+}
+
