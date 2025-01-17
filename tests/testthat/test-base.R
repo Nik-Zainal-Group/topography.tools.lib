@@ -327,3 +327,29 @@ test_that("test extendBedRegions", {
   expect_equal(c(res_ext$start,res_ext$end),c(1,11000,16001, 6000,9000,24000,29000,24000))
   
 })
+
+test_that("test bedpeBreakpointsToPositions", {
+  
+  sv_bedpe <- data.frame(chrom1=c(1,1,2),
+                         start1=c(1000,10000,20000),
+                         end1=c(1001,10001,20001),
+                         chrom2=c(1,2,2),
+                         start2=c(2000,11000,30000),
+                         end2=c(2001,11001,30001),
+                         svclass=c("tandem-duplication","translocation","deletion"),
+                         stringsAsFactors = F)
+  
+  positions_expected <- data.frame(chr=c("1","1","1","2","2","2"),
+                                   position=c(1000,2000,10000,11000,20000,30000),
+                                   svclass=c("tandem-duplication","tandem-duplication",
+                                             "translocation","translocation",
+                                             "deletion","deletion"),
+                                   stringsAsFactors = F)
+  
+  positions <- bedpeBreakpointsToPositions(sv_bedpe = sv_bedpe,
+                                           copycolumns = "svclass")
+  rownames(positions) <- 1:nrow(positions)
+  
+  expect_equal(positions,positions_expected)
+  
+})

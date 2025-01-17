@@ -66,7 +66,7 @@ typing from the R environment:
 devtools::test()
 ```
 
-<a name="docs"/>
+<a name="docs"/></a>
 
 ## Package documentation
 

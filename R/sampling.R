@@ -302,3 +302,139 @@ resampleBedRegions <- function(bed_table,
   
   return(sortBed(resampled_bed_table))
 }
+
+
+
+#' Resample structural variants
+#'
+#' Given a table of structural variants in bedpe format, resample them to obtain a set of random structural variants.
+#' The chromosome of each resampled region will be preserved. Structural variant breakpoints will be resampled
+#' within regions that are mappable and not blacklisted according to ENCODE.
+#' Custom sampling regions can be specified with the parameter samplingRegions, which can
+#' be used for example to assign custom probability to each region. Bear in mind that
+#' for each region, the corresponding subsets of regions in the same chromosome will
+#' be selected.
+#' 
+#' @param sv_bedpe data.frame with positions, required columns are: chrom1, start1, end1, chrom2, start2, end2, svclass
+#' @param samplingRegions data frame containing bed regions, with required columns chr, start, end,
+#' and optionally regionprob. If regionprob is missing, it will be proportional to the region sizes 
+#' for each chromosome. If NULL, samplingRegions will be the set of regions that are mappable and 
+#' not blacklisted according to ENCODE for the reference genome specified by genomev
+#' @param genomev reference genome version, hg19 or hg38. This parameter will be used only if
+#' samplingRegions is NULL, to load the samplingRegions for the corresponding reference genome
+#' @param randomSeed set a random seed
+#' @param maxattempts max number of attempts for resampling each SV. If maxattempts is reached, then the SV is skipped.
+#' @param verbose print additional output
+#' @return resampled SVs
+#' @export
+resampleSV <- function(sv_bedpe,
+                       genomev,
+                       samplingRegions=NULL,
+                       randomSeed=NULL,
+                       maxattempts=100,
+                       verbose=FALSE){
+  
+  # check for required sv_bedpe colnames
+  requiredcolumns <- c("chrom1", "start1", "end1", "chrom2", "start2", "end2", "svclass")
+  if(!all(requiredcolumns %in% colnames(sv_bedpe))){
+    misscol <- setdiff(requiredcolumns,colnames(sv_bedpe))
+    message("[error resampleSV] missing columns: ",paste(misscol,collapse = ", "))
+    return(NULL)
+  }
+  
+  if(!is.null(randomSeed)){
+    set.seed(randomSeed)
+  }
+  
+  if(is.null(samplingRegions)){
+    if(genomev=="hg19"){
+      samplingRegions <- samplingRegions_hg19
+    }else if(genomev=="hg38"){
+      samplingRegions <- samplingRegions_hg38
+    }else{
+      message("[error resampleSV] invalid genomev. Use hg19 or hg38.")
+      return(NULL)
+    }
+    samplingRegions$id <- 1:nrow(samplingRegions)
+  }
+  
+  # now resample each sv
+  resampled_bedpe <- NULL
+  for(i in 1:nrow(sv_bedpe)){
+    # i <- 1
+    if((i %% 50 == 0) & verbose){
+      message("[info resampleSV] processing row ",i," of ",nrow(sv_bedpe))
+    }
+    positionsAllOK <- FALSE
+    n_attempts <- 0
+    while (!positionsAllOK & n_attempts < maxattempts) {
+      n_attempts <- n_attempts + 1
+      # get chr1 position first
+      position1 <- randomPositionInRegions(samplingRegions = samplingRegions[samplingRegions$chr==sv_bedpe$chrom1[i],,drop=F])
+      newrow <- data.frame(chrom1 = position1$chr,
+                           start1 = position1$position,
+                           end1 = position1$position + 1,
+                           stringsAsFactors = F)
+      if(sv_bedpe$svclass[i]=="translocation"){
+        # just pick a random position in the corresponding chromosome
+        position2 <- randomPositionInRegions(samplingRegions = samplingRegions[samplingRegions$chr==sv_bedpe$chrom2[i],,drop=F])
+        newrow <- cbind(newrow,data.frame(chrom2 = position2$chr,
+                                          start2 = position2$position,
+                                          end2 = position2$position + 1,
+                                          svclass = "translocation",
+                                          stringsAsFactors = F))
+        positionsAllOK <- TRUE
+      }else{
+        # need to sample preserving the length, either on the 5' or 3' direction
+        svsize <- abs(sv_bedpe$start2[i] - sv_bedpe$start1[i])
+        direction <- sample(x=c(-1,1),size = 1)
+        position2 <- position1$position + svsize*direction
+        # now check if the position is in a valid region
+        checkres <- intersectPositionsAndBedRegions_nonOverlapping(positions = data.frame(chr = sv_bedpe$chrom2[i],
+                                                                                          position = position2,
+                                                                                          id = 1,
+                                                                                          stringsAsFactors = F),
+                                                                   bed_table = samplingRegions[samplingRegions$chr==sv_bedpe$chrom2[i],,drop=F])
+        if(checkres$annotatedPositions$classAnnotation=="1:anyRegion"){
+          # we are good
+          newrow <- cbind(newrow,data.frame(chrom2 = sv_bedpe$chrom2[i],
+                                            start2 = position2,
+                                            end2 = position2 + 1,
+                                            svclass = sv_bedpe$svclass[i],
+                                            stringsAsFactors = F))
+          positionsAllOK <- TRUE
+        }else{
+          # try swapping direction
+          position2 <- position1$position - svsize*direction
+          # now check if the position is in a valid region
+          checkres <- intersectPositionsAndBedRegions_nonOverlapping(positions = data.frame(chr = sv_bedpe$chrom2[i],
+                                                                                            position = position2,
+                                                                                            id = 1,
+                                                                                            stringsAsFactors = F),
+                                                                     bed_table = samplingRegions[samplingRegions$chr==sv_bedpe$chrom2[i],,drop=F])
+          if(checkres$annotatedPositions$classAnnotation=="1:anyRegion"){
+            # we are good
+            newrow <- cbind(newrow,data.frame(chrom2 = sv_bedpe$chrom2[i],
+                                              start2 = position2,
+                                              end2 = position2 + 1,
+                                              svclass = sv_bedpe$svclass[i],
+                                              stringsAsFactors = F))
+            positionsAllOK <- TRUE
+          }
+        }
+        
+      }
+      # if we are not good (position2 is not valid) then do nothing and the
+      # while loop will continue, searching for a new position 1
+    }
+    if(positionsAllOK){
+      resampled_bedpe <- rbind(resampled_bedpe,newrow)
+    }else{
+      message("[warning resampleSV] skipping row ",i," of ",nrow(sv_bedpe),". Too many failed resampling attempts (max=",maxattempts,")")
+    }
+    
+  }
+  return(resampled_bedpe)
+}
+
+

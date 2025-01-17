@@ -1535,3 +1535,68 @@ distanceOfPositionToNearestBedRegion <- function(positions,
   # return annotated positions
   return(annotatedPositions)
 }
+
+
+#' Extract breakpoint positions from a bedpe structural variants table
+#'
+#' Given a table containing structural variants in bedpe format, with two break
+#' points in each row, return all the breakpoints as positions. For eacn breakpoint,
+#' the corresponding position will be the floor of the average of start and end positions.
+#' 
+#' @param sv_bedpe data frame with required columns: chr1, start1, end1, chr2, start2, end2
+#' @param copycolumns names of sv_bedpe columns to copy, for example to carry over 
+#' the mutation type or id of the structural variants
+#' @return positions of the breakpoints
+#' @export
+bedpeBreakpointsToPositions <- function(sv_bedpe,
+                                        copycolumns=NULL){
+  
+  requiredcolumns <- c("chrom1","start1","end1",
+                       "chrom2","start2","end2")
+  
+  if(!all(requiredcolumns %in% colnames(sv_bedpe))){
+    missingcolumns <- setdiff(requiredcolumns,colnames(sv_bedpe))
+    message("[error bedpeBreakpointsToPositions] missing required columns: ",paste(missingcolumns,collapse = ", "))
+    return(NULL)
+  }
+  
+  if(!is.null(copycolumns)){
+    # check that copycolumns are indeed columns of sv_bedpe
+    if(!all(copycolumns %in% colnames(sv_bedpe))){
+      missingcolumns <- setdiff(copycolumns,colnames(sv_bedpe))
+      message("[warning bedpeBreakpointsToPositions] cannot copy missing sv_bedpe columns: ",paste(missingcolumns,collapse = ", "))
+      if(length(copycolumns)-length(missingcolumns)>0){
+        copycolumns <- setdiff(copycolumns,missingcolumns)
+      }else{
+        copycolumns <- NULL
+      }
+    }
+  }
+  
+  
+  mutations <- NULL
+  for(i in 1:nrow(sv_bedpe)){
+    # i <- 1
+    # each row contains two breakpoints
+    tmpdf <- NULL
+    for(pi in c(1,2)){
+      # pi <- 1
+      tmpdfi <- data.frame(chr=sv_bedpe[i,paste0("chrom",pi)],
+                           position=floor((sv_bedpe[i,paste0("start",pi)]+sv_bedpe[i,paste0("end",pi)])/2),
+                           stringsAsFactors = F)
+      if("id" %in% colnames(sv_bedpe)){
+        tmpdfi <- cbind(tmpdfi,data.frame(id=sv_bedpe[i,"id"],
+                                          stringsAsFactors = F))
+      }
+      if(!is.null(copycolumns)){
+        tmpdfi <- cbind(tmpdfi,sv_bedpe[i,copycolumns,drop=F])
+      }
+      tmpdf <- rbind(tmpdf,tmpdfi)
+    }
+    mutations <- rbind(mutations,tmpdf)
+  }
+  mutations <- sortPositions(positions = mutations)
+  return(mutations)
+}
+
+
