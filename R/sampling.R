@@ -324,6 +324,7 @@ resampleBedRegions <- function(bed_table,
 #' samplingRegions is NULL, to load the samplingRegions for the corresponding reference genome
 #' @param randomSeed set a random seed
 #' @param maxattempts max number of attempts for resampling each SV. If maxattempts is reached, then the SV is skipped.
+#' @param copyAdditionalColumns if TRUE, columns other than the required columns will be copied as well into the resampled SVs
 #' @param verbose print additional output
 #' @return resampled SVs
 #' @export
@@ -332,6 +333,7 @@ resampleSV <- function(sv_bedpe,
                        samplingRegions=NULL,
                        randomSeed=NULL,
                        maxattempts=100,
+                       copyAdditionalColumns=TRUE,
                        verbose=FALSE){
   
   # check for required sv_bedpe colnames
@@ -428,6 +430,12 @@ resampleSV <- function(sv_bedpe,
       # while loop will continue, searching for a new position 1
     }
     if(positionsAllOK){
+      if(copyAdditionalColumns){
+        colstocopy <- setdiff(colnames(sv_bedpe),requiredcolumns)
+        if(length(colstocopy)>0){
+          newrow <- cbind(newrow,sv_bedpe[i,colstocopy,drop=F])
+        }
+      }
       resampled_bedpe <- rbind(resampled_bedpe,newrow)
     }else{
       message("[warning resampleSV] skipping row ",i," of ",nrow(sv_bedpe),". Too many failed resampling attempts (max=",maxattempts,")")

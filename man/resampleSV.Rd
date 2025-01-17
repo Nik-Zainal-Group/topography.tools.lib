@@ -10,6 +10,7 @@ resampleSV(
   samplingRegions = NULL,
   randomSeed = NULL,
   maxattempts = 100,
+  copyAdditionalColumns = TRUE,
   verbose = FALSE
 )
 }
@@ -27,6 +28,8 @@ not blacklisted according to ENCODE for the reference genome specified by genome
 \item{randomSeed}{set a random seed}
 
 \item{maxattempts}{max number of attempts for resampling each SV. If maxattempts is reached, then the SV is skipped.}
+
+\item{copyAdditionalColumns}{if TRUE, columns other than the required columns will be copied as well into the resampled SVs}
 
 \item{verbose}{print additional output}
 }
