@@ -4,7 +4,12 @@
 \alias{annotateBedWithGenes}
 \title{Annotate bed regions with genes}
 \usage{
-annotateBedWithGenes(bed_table, proteinCodingOnly = TRUE, genomev = "hg19")
+annotateBedWithGenes(
+  bed_table,
+  proteinCodingOnly = TRUE,
+  genomev = "hg19",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{bed_table}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.}
@@ -12,6 +17,8 @@ annotateBedWithGenes(bed_table, proteinCodingOnly = TRUE, genomev = "hg19")
 \item{proteinCodingOnly}{if TRUE then annotate only protein coding genes}
 
 \item{genomev}{genome version, hg19 or hg38}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 annotated bed_table

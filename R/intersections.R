@@ -232,11 +232,13 @@ mergeIdMaps <- function(idMap1,
 #' @param computeStats if FALSE, intersect stats will not be calculated and only the id maps mapping
 #' position ids to region ids and viceversa will be returned. This is meant to save compute time when
 #' intersectPositionsAndBedRegions_nonOverlapping is run inside intersectPositionsAndBedRegions.
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return object with details intersection statistics
 #' @export
 intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
                                                            bed_table,
-                                                           computeStats=TRUE){
+                                                           computeStats=TRUE,
+                                                           verbose=TRUE){
   # check column requirements
   # check required columns
   requiredcolumns <- c("chr","position","id")
@@ -253,7 +255,7 @@ intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
   }
   
   # check which chromosomes have overlap if any
-  overlapChroms <- checkBedRegionsOverlap(bed_table)
+  overlapChroms <- checkBedRegionsOverlap(bed_table,verbose=verbose)
   if(!is.null(overlapChroms)){
     message("[error intersectPositionsAndBedRegions_nonOverlapping] regions should not overlap, ",
             "you can break them down using the function breakDownOverlappingBedRegions, ",
@@ -403,10 +405,12 @@ intersectPositionsAndBedRegions_nonOverlapping <- function(positions,
 #' 
 #' @param positions data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique
 #' @param bed_table data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return object with details intersection statistics
 #' @export
 intersectPositionsAndBedRegions <- function(positions,
-                                            bed_table){
+                                            bed_table,
+                                            verbose=TRUE){
   # check column requirements
   # check required columns
   requiredcolumns <- c("chr","position","id")
@@ -434,13 +438,15 @@ intersectPositionsAndBedRegions <- function(positions,
   overlapChroms <- checkBedRegionsOverlap(bed_table)
   if(is.null(overlapChroms)){
     # bed_regions are non-overlapping, we can just use the non-overlapping function
-    message("[info intersectPositionsAndBedRegions] bed_table regions are not overlapping: running intersectPositionsAndBedRegions_nonOverlapping")
+    if(verbose) message("[info intersectPositionsAndBedRegions] bed_table regions are not overlapping: running intersectPositionsAndBedRegions_nonOverlapping")
     return(intersectPositionsAndBedRegions_nonOverlapping(positions = positions,
-                                                          bed_table = bed_table))
+                                                          bed_table = bed_table,
+                                                          verbose = verbose))
   }else{
     # bed_regions are overlapping, we need to assign the regions to non-overlapping sets
-    message("[info intersectPositionsAndBedRegions] bed_table regions are overlapping: assigning regions to non-overlapping sets and running separately")
-    assignedSets <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table)
+    if(verbose) message("[info intersectPositionsAndBedRegions] bed_table regions are overlapping: assigning regions to non-overlapping sets and running separately")
+    assignedSets <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table,
+                                                         verbose = verbose)
     assignedSets <- reverseIdMap(assignedSets)
     # index
     rownames(bed_table) <- bed_table$id
@@ -450,12 +456,13 @@ intersectPositionsAndBedRegions <- function(positions,
     # run the intersection for each set
     for(i in 1:length(assignedSets)){
       # i <- 1
-      message("[info intersectPositionsAndBedRegions] running intersection with non-overlapping set ",i," of ",length(assignedSets))
+      if(verbose) message("[info intersectPositionsAndBedRegions] running intersection with non-overlapping set ",i," of ",length(assignedSets))
       si <- names(assignedSets)[i]
       ids <- assignedSets[[si]]
       tmpres <- intersectPositionsAndBedRegions_nonOverlapping(positions = positions,
                                                                bed_table = bed_table[ids,,drop=F],
-                                                               computeStats = FALSE)
+                                                               computeStats = FALSE,
+                                                               verbose = verbose)
       idMapPositionsToRegions <- mergeIdMaps(idMap1 = idMapPositionsToRegions,
                                              idMap2 = tmpres$idMapPositionsToRegions)
       idMapRegionsToPositions <- mergeIdMaps(idMap1 = idMapRegionsToPositions,
@@ -514,11 +521,13 @@ intersectPositionsAndBedRegions <- function(positions,
 #' @param computeStats if FALSE, intersect stats will not be calculated and only the id maps mapping
 #' position ids to region ids and viceversa will be returned. This is meant to save compute time when
 #' intersectBed_nonOverlapping is run inside intersectBed.
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return object with details intersection statistics
 #' @export
 intersectBed_nonOverlapping <- function(bed_table1,
                                         bed_table2,
-                                        computeStats = TRUE){
+                                        computeStats = TRUE,
+                                        verbose = TRUE){
   
   requiredcolumns <- c("chr","start","end","id")
   if(!all(requiredcolumns %in% colnames(bed_table1))){
@@ -537,7 +546,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
   bed_table2$id <- as.character(bed_table2$id)
   
   if (nrow(bed_table1)==0 & nrow(bed_table2)==0){
-    message("[info intersectBed_nonOverlapping] None of the input bed_table contains regions.")
+    if(verbose) message("[info intersectBed_nonOverlapping] None of the input bed_table contains regions.")
     com_table <- data.frame(chr=character(),
                             start=numeric(),
                             end=numeric(),
@@ -546,7 +555,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                             segment2=numeric(),
                             stringsAsFactors = F)
   }else if (nrow(bed_table1)==0){
-    message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions, so they are all private.")
+    if(verbose) message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions, so they are all private.")
     com_table <- data.frame(chr=bed_table2$chr,
                             start=bed_table2$start,
                             end=bed_table2$end,
@@ -555,7 +564,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                             segment2=bed_table2$id,
                             stringsAsFactors = F)
   }else if (nrow(bed_table2)==0){
-    message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions, so they are all private.")
+    if(verbose) message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions, so they are all private.")
     com_table <- data.frame(chr=bed_table1$chr,
                             start=bed_table1$start,
                             end=bed_table1$end,
@@ -565,14 +574,16 @@ intersectBed_nonOverlapping <- function(bed_table1,
                             stringsAsFactors = F)
   }else{
     # I need to check that there are no overlaps
-    overlapChroms1 <- checkBedRegionsOverlap(bed_table = bed_table1)
+    overlapChroms1 <- checkBedRegionsOverlap(bed_table = bed_table1,
+                                             verbose = verbose)
     if(!is.null(overlapChroms1)){
       message("[error intersectBed_nonOverlapping] regions in bed_table1 should not overlap, ",
               "you can break them down using the function breakDownOverlappingBedRegions, ",
               "or you can run intersectBed instead.")
       return(NULL)
     }
-    overlapChroms2 <- checkBedRegionsOverlap(bed_table = bed_table2)
+    overlapChroms2 <- checkBedRegionsOverlap(bed_table = bed_table2,
+                                             verbose = verbose)
     if(!is.null(overlapChroms2)){
       message("[error intersectBed_nonOverlapping] regions in bed_table2 should not overlap, ",
               "you can break them down using the function breakDownOverlappingBedRegions, ",
@@ -866,10 +877,12 @@ intersectBed_nonOverlapping <- function(bed_table1,
 #' 
 #' @param bed_table1 data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.
 #' @param bed_table2 data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return object with details intersection statistics
 #' @export
 intersectBed <- function(bed_table1,
-                         bed_table2){
+                         bed_table2,
+                         verbose = TRUE){
   
   requiredcolumns <- c("chr","start","end","id")
   if(!all(requiredcolumns %in% colnames(bed_table1))){
@@ -904,12 +917,14 @@ intersectBed <- function(bed_table1,
       bed_table2$class <- "anyRegion"
     }
     
-    message("[info intersectBed] Assigning bed_table1 regions to non-overlapping sets")
-    assignedSets1 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table1)
+    if(verbose) message("[info intersectBed] Assigning bed_table1 regions to non-overlapping sets")
+    assignedSets1 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table1,
+                                                          verbose = verbose)
     assignedSets1 <- reverseIdMap(assignedSets1)
     
-    message("[info intersectBed] Assigning bed_table2 regions to non-overlapping sets")
-    assignedSets2 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table2)
+    if(verbose) message("[info intersectBed] Assigning bed_table2 regions to non-overlapping sets")
+    assignedSets2 <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table2,
+                                                          verbose = verbose)
     assignedSets2 <- reverseIdMap(assignedSets2)
     
     # run the intersection for each set
@@ -919,14 +934,17 @@ intersectBed <- function(bed_table1,
       ids1 <- assignedSets1[[si]]
       for(j in 1:length(assignedSets2)){
         # j <- 1
-        message("[info intersectBed] running intersection between non-overlapping set ",i,
-                " of ",length(assignedSets1)," from bed_table1 and non-overlapping set ",j,
-                " of ",length(assignedSets2)," from bed_table2")
+        if(verbose) {
+          message("[info intersectBed] running intersection between non-overlapping set ",i,
+                  " of ",length(assignedSets1)," from bed_table1 and non-overlapping set ",j,
+                  " of ",length(assignedSets2)," from bed_table2")
+        }
         sj <- names(assignedSets2)[j]
         ids2 <- assignedSets2[[sj]]
         tmpres <- intersectBed_nonOverlapping(bed_table1 = bed_table1[ids1,,drop=F],
                                               bed_table2 = bed_table2[ids2,,drop=F],
-                                              computeStats = FALSE)
+                                              computeStats = FALSE,
+                                              verbose = verbose)
         idMapRegions1ToRegions2 <- mergeIdMaps(idMap1 = idMapRegions1ToRegions2,
                                                idMap2 = tmpres$idMapRegions1ToRegions2)
         idMapRegions2ToRegions1 <- mergeIdMaps(idMap1 = idMapRegions2ToRegions1,

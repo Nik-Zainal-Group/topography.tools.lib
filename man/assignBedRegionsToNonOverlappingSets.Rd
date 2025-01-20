@@ -4,7 +4,11 @@
 \alias{assignBedRegionsToNonOverlappingSets}
 \title{Assign bed regions to non-overlapping sets}
 \usage{
-assignBedRegionsToNonOverlappingSets(bed_table, brokenDown_bed_table = NULL)
+assignBedRegionsToNonOverlappingSets(
+  bed_table,
+  brokenDown_bed_table = NULL,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{bed_table}{data frame with required columns: chr, start, end, id, and optionally signal}
@@ -12,6 +16,8 @@ assignBedRegionsToNonOverlappingSets(bed_table, brokenDown_bed_table = NULL)
 \item{brokenDown_bed_table}{This should be the result of breakDownOverlappingBedRegions(bed_table,...),
 in case this has already been computed. If left NULL (the default), breakDownOverlappingBedRegions(bed_table)
 is called by this function with default parameters}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 list object assigning a set number (integer) to each bed region id

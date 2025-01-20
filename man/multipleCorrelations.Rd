@@ -16,7 +16,8 @@ multipleCorrelations(
   genomev = "hg19",
   samplingRegions = NULL,
   randomSeed = NULL,
-  nparallel = 1
+  nparallel = 1,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -48,6 +49,8 @@ bed regions, the resampling will allow bed regions overlap}
 \item{randomSeed}{set a random seed for the resampling}
 
 \item{nparallel}{how many parallel processes to use when running the resampling}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 correlation statistics and annotations

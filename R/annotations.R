@@ -7,11 +7,13 @@
 #' @param bed_table data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.
 #' @param proteinCodingOnly if TRUE then annotate only protein coding genes 
 #' @param genomev genome version, hg19 or hg38
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return annotated bed_table
 #' @export
 annotateBedWithGenes <- function(bed_table,
                                  proteinCodingOnly = TRUE,
-                                 genomev = "hg19"){
+                                 genomev = "hg19",
+                                 verbose = TRUE){
   if(genomev=="hg19"){
     genetable <- genetable_hg19
   }else if(genomev=="hg38"){
@@ -33,7 +35,8 @@ annotateBedWithGenes <- function(bed_table,
   if(!startsWith(as.character(bed_table$chr[1]),prefix = "chr")) genetable$chr <- substr(genetable$chr,4,5)
 
   corr_res <- intersectBed(bed_table1 = bed_table,
-                           bed_table2 = genetable)
+                           bed_table2 = genetable,
+                           verbose = verbose)
   
   bed_table <- corr_res$annotatedBedRegions1
   colnames(bed_table)[which(colnames(bed_table)=="idAnnotation")] <- "geneIds"

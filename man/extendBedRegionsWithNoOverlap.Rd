@@ -4,13 +4,15 @@
 \alias{extendBedRegionsWithNoOverlap}
 \title{Extend bed regions preserving no overlap}
 \usage{
-extendBedRegionsWithNoOverlap(bed_table, extended)
+extendBedRegionsWithNoOverlap(bed_table, extended, verbose = TRUE)
 }
 \arguments{
 \item{bed_table}{data frame with required columns: chr, start, end}
 
 \item{extended}{length in number of bases by which each region should be
 extended in both directions}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 updated bed_table

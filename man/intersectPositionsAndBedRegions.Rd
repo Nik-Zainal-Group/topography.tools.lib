@@ -4,12 +4,14 @@
 \alias{intersectPositionsAndBedRegions}
 \title{Intersect positions with bed regions}
 \usage{
-intersectPositionsAndBedRegions(positions, bed_table)
+intersectPositionsAndBedRegions(positions, bed_table, verbose = TRUE)
 }
 \arguments{
 \item{positions}{data frame containing positions, with required columns chr, position, id and optionally class. Value in the id column must be unique}
 
 \item{bed_table}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 object with details intersection statistics

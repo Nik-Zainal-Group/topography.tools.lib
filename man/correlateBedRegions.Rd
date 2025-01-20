@@ -20,7 +20,8 @@ correlateBedRegions(
   returnResampledBedRegions2 = FALSE,
   resampled_bed_regions1_list = NULL,
   resampled_bed_regions2_list = NULL,
-  nparallel = 1
+  nparallel = 1,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -57,6 +58,8 @@ correlations testing so that the NULL distribution can be calculated only once}
 correlations testing so that the NULL distribution can be calculated only once}
 
 \item{nparallel}{how many parallel processes to use when running the resampling}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 object with correlation statistics and additional data

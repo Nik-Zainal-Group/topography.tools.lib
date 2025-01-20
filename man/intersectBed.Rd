@@ -4,12 +4,14 @@
 \alias{intersectBed}
 \title{Intersect two sets of bed regions}
 \usage{
-intersectBed(bed_table1, bed_table2)
+intersectBed(bed_table1, bed_table2, verbose = TRUE)
 }
 \arguments{
 \item{bed_table1}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.}
 
 \item{bed_table2}{data frame containing bed regions, with required columns chr, start, end, id and optionally class. Value in the id column must be unique.}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 object with details intersection statistics

@@ -7,7 +7,8 @@
 breakDownOverlappingBedRegions(
   bed_table,
   aggregateSignalMode = "mean",
-  aggregateTextColumns = NULL
+  aggregateTextColumns = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -16,6 +17,8 @@ breakDownOverlappingBedRegions(
 \item{aggregateSignalMode}{can be either: mean or sum, relevant only if the signal column is present}
 
 \item{aggregateTextColumns}{is a list of columns of bed_table that should be aggregated}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 updated bed_table with non-overlapping regions

@@ -29,6 +29,7 @@
 #' @param resampled_bed_regions_list supply your own resampled bed tables. Use it only if you know what you are doing. Typically useful for multiple
 #' correlations testing so that the NULL distribution can be calculated only once 
 #' @param nparallel how many parallel processes to use when running the resampling 
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return object with correlation statistics and additional data
 #' @export
 correlatePositionsWithBedRegions <- function(positions,
@@ -45,7 +46,8 @@ correlatePositionsWithBedRegions <- function(positions,
                                              returnResampledBedRegions=FALSE,
                                              resampled_positions_list=NULL,
                                              resampled_bed_regions_list=NULL,
-                                             nparallel=1){
+                                             nparallel=1,
+                                             verbose = TRUE){
   
   # check required columns
   requiredcolumns <- c("chr","position","id")
@@ -103,7 +105,8 @@ correlatePositionsWithBedRegions <- function(positions,
   
   # find overlaps
   res_assign <- intersectPositionsAndBedRegions(positions = positions,
-                                                bed_table  = bed_table)
+                                                bed_table  = bed_table,
+                                                verbose = verbose)
   
   # prepare info
   totalPostionsInAnyRegion <- res_assign$totalPostionsInAnyRegion
@@ -141,7 +144,7 @@ correlatePositionsWithBedRegions <- function(positions,
   resampled_bed_regions_list <- list()
   
   if(nsamples>0){
-    message("[info correlatePositionsWithBedRegions] resampling... ")
+    if(verbose) message("[info correlatePositionsWithBedRegions] resampling... ")
     
     # set RNGkind to avoid warning
     RNGkind("L'Ecuyer-CMRG")
@@ -152,7 +155,7 @@ correlatePositionsWithBedRegions <- function(positions,
     }
     
     res_list <- foreach::foreach(i=1:nsamples) %dorng% {
-      message("[info correlatePositionsWithBedRegions] resampling ",i," of ",nsamples)
+      if(verbose) message("[info correlatePositionsWithBedRegions] resampling ",i," of ",nsamples)
       if(resamplePositionsFlag){
         if(is.null(precomputed_resampled_positions_list)){
           resampled_positions <- resamplePositions(positions = positions,
@@ -183,7 +186,8 @@ correlatePositionsWithBedRegions <- function(positions,
       
       # now get the stats
       res_sample_assign <- intersectPositionsAndBedRegions(positions = resampled_positions,
-                                                           bed_table = resampled_bed_table)
+                                                           bed_table = resampled_bed_table,
+                                                           verbose = verbose)
       # combine and return
       returnObj <- list()
       returnObj$sampled_PostionsInAnyRegion <- res_sample_assign$totalPostionsInAnyRegion
@@ -217,7 +221,7 @@ correlatePositionsWithBedRegions <- function(positions,
   returnObj$countsTable_regionsAtPositionClasses <- countsTable_regionsAtPositionClasses
   
   if(nsamples>0){
-    message("[info correlatePositionsWithBedRegions] calculating p-values... ")
+    if(verbose) message("[info correlatePositionsWithBedRegions] calculating p-values... ")
     
     returnObj$sampled_PostionsInAnyRegion <- sampled_PostionsInAnyRegion
     returnObj$sampled_RegionsAtAnyPosition <- sampled_RegionsAtAnyPosition
@@ -229,7 +233,7 @@ correlatePositionsWithBedRegions <- function(positions,
       returnObj$pvalue_PostionsInAnyRegion <- sum(totalPostionsInAnyRegion>=sampled_PostionsInAnyRegion)/nsamples
       returnObj$pvalue_RegionsAtAnyPosition <- sum(totalRegionsAtAnyPosition>=sampled_RegionsAtAnyPosition)/nsamples
     }else{
-      message("[info correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+      message("[warning correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
     
     # calculate all p-values the easy way
@@ -275,7 +279,7 @@ correlatePositionsWithBedRegions <- function(positions,
       returnObj$pvalue_positionsInRegionClasses <- pvalue_positionsInRegionClasses
       returnObj$pvalue_regionsAtPositionClasses <- pvalue_regionsAtPositionClasses
     }else{
-      message("[info correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+      message("[warning correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
     
     # calculate also the mean/median/sd of counts
@@ -364,6 +368,7 @@ correlatePositionsWithBedRegions <- function(positions,
 #' @param resampled_bed_regions2_list supply your own resampled bed_table2. Use it only if you know what you are doing. Typically useful for multiple
 #' correlations testing so that the NULL distribution can be calculated only once 
 #' @param nparallel how many parallel processes to use when running the resampling 
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return object with correlation statistics and additional data
 #' @export
 correlateBedRegions <- function(bed_table1,
@@ -381,7 +386,8 @@ correlateBedRegions <- function(bed_table1,
                                 returnResampledBedRegions2=FALSE,
                                 resampled_bed_regions1_list=NULL,
                                 resampled_bed_regions2_list=NULL,
-                                nparallel=1){
+                                nparallel=1,
+                                verbose = TRUE){
   
   # check required columns
   requiredcolumns <- c("chr","start","end","id")
@@ -438,7 +444,8 @@ correlateBedRegions <- function(bed_table1,
   
   # find overlaps
   res_assign <- intersectBed(bed_table1 = bed_table1,
-                             bed_table2 = bed_table2)
+                             bed_table2 = bed_table2,
+                             verbose = verbose)
   
   # prepare info
   totalRegions1overlappingAnyRegion2 <- res_assign$totalRegions1overlappingAnyRegion2
@@ -475,7 +482,7 @@ correlateBedRegions <- function(bed_table1,
   resampled_bed_regions1_list <- list()
   resampled_bed_regions2_list <- list()
   if(nsamples>0){
-    message("[info correlateBedRegions] resampling... ")
+    if(verbose) message("[info correlateBedRegions] resampling... ")
     
     # set RNGkind to avoid warning
     RNGkind("L'Ecuyer-CMRG")
@@ -486,7 +493,7 @@ correlateBedRegions <- function(bed_table1,
     }
     
     res_list <- foreach::foreach(i=1:nsamples) %dorng% {
-      message("[info correlateBedRegions] resampling ",i," of ",nsamples)
+      if(verbose) message("[info correlateBedRegions] resampling ",i," of ",nsamples)
       
       if(resampleBedRegions1Flag){
         if(is.null(precomputed_resampled_bed_regions1_list)){
@@ -518,7 +525,8 @@ correlateBedRegions <- function(bed_table1,
       
       # now get the stats
       res_sample_assign <- intersectBed(bed_table1 = resampled_bed_table1,
-                                        bed_table2 = resampled_bed_table2)
+                                        bed_table2 = resampled_bed_table2,
+                                        verbose = verbose)
       # combine and return
       returnObj <- list()
       returnObj$sampled_Regions1overlappingAnyRegion2 <- res_sample_assign$totalRegions1overlappingAnyRegion2
@@ -552,7 +560,7 @@ correlateBedRegions <- function(bed_table1,
   returnObj$countsTable_regions2overlappingRegion1classes <- countsTable_regions2overlappingRegion1classes
   
   if(nsamples>0){
-    message("[info correlateBedRegions] calculating p-values... ")
+    if(verbose) message("[info correlateBedRegions] calculating p-values... ")
     
     returnObj$sampled_Regions1overlappingAnyRegion2 <- sampled_Regions1overlappingAnyRegion2
     returnObj$sampled_Regions2overlappingAnyRegion1 <- sampled_Regions2overlappingAnyRegion1
@@ -564,7 +572,7 @@ correlateBedRegions <- function(bed_table1,
       returnObj$pvalue_Regions1overlappingAnyRegion2 <- sum(totalRegions1overlappingAnyRegion2>=sampled_Regions1overlappingAnyRegion2)/nsamples
       returnObj$pvalue_Regions2overlappingAnyRegion1 <- sum(totalRegions2overlappingAnyRegion1>=sampled_Regions2overlappingAnyRegion1)/nsamples
     }else{
-      message("[info correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+      message("[warning correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
     
     # calculate all p-values the easy way
@@ -610,7 +618,7 @@ correlateBedRegions <- function(bed_table1,
       returnObj$pvalue_regions1overlappingRegion2classes <- pvalue_regions1overlappingRegion2classes
       returnObj$pvalue_regions2overlappingRegion1classes <- pvalue_regions2overlappingRegion1classes
     }else{
-      message("[info correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+      message("[warning correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
     
     # calculate also the mean/median/sd of counts
@@ -695,7 +703,8 @@ correlateBedRegions <- function(bed_table1,
 #' @param genomev hg19 or hg38
 #' @param samplingRegions supply your own sampling regions for resampling positions and/or bed_table.
 #' @param randomSeed set a random seed for the resampling 
-#' @param nparallel how many parallel processes to use when running the resampling 
+#' @param nparallel how many parallel processes to use when running the resampling
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return correlation statistics and annotations
 #' @export
 multipleCorrelations <- function(referenceEntities,
@@ -709,7 +718,8 @@ multipleCorrelations <- function(referenceEntities,
                                  genomev = "hg19",
                                  samplingRegions = NULL,
                                  randomSeed = NULL,
-                                 nparallel = 1){
+                                 nparallel = 1,
+                                 verbose = TRUE){
   
   # check type of referenceEntities
   etype <- getEntitiesType(entities = referenceEntities)
@@ -723,7 +733,7 @@ multipleCorrelations <- function(referenceEntities,
   # if we are resampling, let's do it once only for the reference
   resampled_referenceEntities <- NULL
   if(nsamples>0) {
-    message("[info multipleCorrelations] resampling referenceEntities...")
+    if(verbose) message("[info multipleCorrelations] resampling referenceEntities...")
     # set RNGkind to avoid warning
     RNGkind("L'Ecuyer-CMRG")
     doParallel::registerDoParallel(nparallel)
@@ -813,7 +823,8 @@ multipleCorrelations <- function(referenceEntities,
                                                                 altHypothesis = altHypothesis,
                                                                 samplingRegions = samplingRegions,
                                                                 nparallel = nparallel,
-                                                                randomSeed = randomSeed)
+                                                                randomSeed = randomSeed,
+                                                                verbose = verbose)
         # update annotated reference entities
         annotatedEntities <- res_corr_pos_extend$annotatedPositions
         annotatedEntities$classAnnotation <- NULL
@@ -870,7 +881,8 @@ multipleCorrelations <- function(referenceEntities,
                                                                   altHypothesis = altHypothesis,
                                                                   samplingRegions = samplingRegions,
                                                                   nparallel = nparallel,
-                                                                  randomSeed = randomSeed)
+                                                                  randomSeed = randomSeed,
+                                                                  verbose = verbose)
           # update annotated reference entities
           annotatedEntities <- res_corr_pos_extend$annotatedBedRegions
           annotatedEntities$classAnnotation <- NULL
@@ -927,7 +939,8 @@ multipleCorrelations <- function(referenceEntities,
                                                  altHypothesis = altHypothesis,
                                                  samplingRegions = samplingRegions,
                                                  nparallel = nparallel,
-                                                 randomSeed = randomSeed)
+                                                 randomSeed = randomSeed,
+                                                 verbose = verbose)
           # update annotated reference entities
           annotatedEntities <- res_corr_extend$annotatedBedRegions1
           annotatedEntities$classAnnotation <- NULL

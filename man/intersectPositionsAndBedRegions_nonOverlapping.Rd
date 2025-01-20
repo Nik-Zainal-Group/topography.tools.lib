@@ -7,7 +7,8 @@
 intersectPositionsAndBedRegions_nonOverlapping(
   positions,
   bed_table,
-  computeStats = TRUE
+  computeStats = TRUE,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -18,6 +19,8 @@ intersectPositionsAndBedRegions_nonOverlapping(
 \item{computeStats}{if FALSE, intersect stats will not be calculated and only the id maps mapping
 position ids to region ids and viceversa will be returned. This is meant to save compute time when
 intersectPositionsAndBedRegions_nonOverlapping is run inside intersectPositionsAndBedRegions.}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 object with details intersection statistics

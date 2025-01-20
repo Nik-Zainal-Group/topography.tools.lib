@@ -122,9 +122,11 @@ sortBed <- function(bed_table){
 #' the list of chromosomes where the region overlaps occur.
 #' 
 #' @param bed_table data frame with at least three required columns: chr, start, end
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return NULL if no overlaps are found, or a list of chromosome names where overlaps were found
 #' @export
-checkBedRegionsOverlap <- function(bed_table){
+checkBedRegionsOverlap <- function(bed_table,
+                                   verbose = TRUE){
   bed_table <- sortBed(bed_table)
   chroms <- unique(bed_table$chr)
   
@@ -138,7 +140,7 @@ checkBedRegionsOverlap <- function(bed_table){
     }
   }
   if(!is.null(overlapChroms)){
-    message("[info checkBedRegionsOverlap] Regions overlap identified in chromosomes ",paste(overlapChroms,collapse = ", "))
+    if(verbose) message("[info checkBedRegionsOverlap] Regions overlap identified in chromosomes ",paste(overlapChroms,collapse = ", "))
   }
   return(overlapChroms)
 }
@@ -158,11 +160,13 @@ checkBedRegionsOverlap <- function(bed_table){
 #' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
 #' @param aggregateSignalMode can be either: mean or sum, relevant only if the signal column is present
 #' @param aggregateTextColumns is a list of columns of bed_table that should be aggregated
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return updated bed_table with non-overlapping regions
 #' @export
 breakDownOverlappingBedRegions <- function(bed_table,
-                                           aggregateSignalMode="mean",
-                                           aggregateTextColumns=NULL){
+                                           aggregateSignalMode = "mean",
+                                           aggregateTextColumns = NULL,
+                                           verbose = TRUE){
   requiredcolumns <- c("id","chr","start","end")
   acceptedSignalModes <- c("sum","mean")
   
@@ -202,9 +206,9 @@ breakDownOverlappingBedRegions <- function(bed_table,
   if(signalColumn) returncolums <- c(returncolums,"signal")
   
   # check which chromosomes have overlap if any
-  overlapChroms <- checkBedRegionsOverlap(bed_table)
+  overlapChroms <- checkBedRegionsOverlap(bed_table,verbose = verbose)
   if(is.null(overlapChroms)){
-    message("[info breakDownOverlappingBedRegions] no overlapping regions found in bed_table.")
+    if(verbose) message("[info breakDownOverlappingBedRegions] no overlapping regions found in bed_table.")
     return(bed_table[,union(returncolums,aggregateTextColumns),drop=F])
   }else{
     # need to break things down one chromosome at a time, though only in the chromosomes where there is overlap
@@ -215,11 +219,11 @@ breakDownOverlappingBedRegions <- function(bed_table,
       tmpTable <- bed_table[bed_table$chr==chrom,,drop=F]
       if(!chrom %in% overlapChroms){
         # there is no overlap in this chromosome
-        message("[info breakDownOverlappingBedRegions] no overlapping regions found in chromosome ",chrom)
+        if(verbose) message("[info breakDownOverlappingBedRegions] no overlapping regions found in chromosome ",chrom)
         rownames(tmpTable) <- paste(tmpTable$chr,sprintf("%d",tmpTable$start),sprintf("%d",tmpTable$end),sep = "_")
         finalTable <- rbind(finalTable,tmpTable[,returncolums,drop=F])
       }else{
-        message("[info breakDownOverlappingBedRegions] breaking overlapping regions in chromosome ",chrom)
+        if(verbose) message("[info breakDownOverlappingBedRegions] breaking overlapping regions in chromosome ",chrom)
         # there are overlapping regions in this chromosome, so we need to break things down
         allpositions <- unique(c(tmpTable$start,tmpTable$end))
         allpositions <- allpositions[order(allpositions)]
@@ -272,8 +276,10 @@ breakDownOverlappingBedRegions <- function(bed_table,
         countMatchedids <- table(tmpTable$bedid[tmpTable$matchedid])
         uniquelyMatchedIds <- names(countMatchedids)[countMatchedids==1]
         if(length(uniquelyMatchedIds)>0){
-          message("[info breakDownOverlappingBedRegions] found ", length(uniquelyMatchedIds)," bed segments (",
-                  sprintf("%.2f",length(uniquelyMatchedIds)/nrow(tmpTable)*100),"%) that do not need to be broken down, they will be processed quickly.")
+          if(verbose) {
+            message("[info breakDownOverlappingBedRegions] found ", length(uniquelyMatchedIds)," bed segments (",
+                    sprintf("%.2f",length(uniquelyMatchedIds)/nrow(tmpTable)*100),"%) that do not need to be broken down, they will be processed quickly.")
+          }
           # we have some uniquely matched ids that we can deal with in one go
           uniqueIDtmpTable <- tmpTable[tmpTable$bedid %in% uniquelyMatchedIds,]
           rownames(uniqueIDtmpTable) <- uniqueIDtmpTable$bedid
@@ -294,9 +300,9 @@ breakDownOverlappingBedRegions <- function(bed_table,
           for (i in 1:nrow(tmpTable)){
             # i <- 1
             if(i==nrow(tmpTable)){
-              message("[info breakDownOverlappingBedRegions] chromosome ",chrom," progress: 100%")
+              if(verbose) message("[info breakDownOverlappingBedRegions] chromosome ",chrom," progress: 100%")
             }else if(i/nrow(tmpTable)*100>=percmilestone) {
-              message("[info breakDownOverlappingBedRegions] chromosome ",chrom," progress: ",percmilestone,"%")
+              if(verbose) message("[info breakDownOverlappingBedRegions] chromosome ",chrom," progress: ",percmilestone,"%")
               percmilestone <- percmilestone+10
             }
             if(tmpTable[i,"matchedid"]){
@@ -353,7 +359,7 @@ breakDownOverlappingBedRegions <- function(bed_table,
     }
     
     if(!is.null(aggregateTextColumns)){
-      message("[info breakDownOverlappingBedRegions] aggregating requested text columns...")
+      if(verbose) message("[info breakDownOverlappingBedRegions] aggregating requested text columns...")
       # add the aggregated text columns requested
       aggregatedTextColumns <- sapply(finalTable$id,function(x){
         ids <- strsplit(x,split = ";")[[1]]
@@ -370,7 +376,7 @@ breakDownOverlappingBedRegions <- function(bed_table,
       finalTable <- cbind(finalTable,aggregatedTextColumns)
     }
     
-    message("[info breakDownOverlappingBedRegions] done.")
+    if(verbose) message("[info breakDownOverlappingBedRegions] done.")
     return(finalTable)
   }
 }
@@ -388,13 +394,15 @@ breakDownOverlappingBedRegions <- function(bed_table,
 #' @param brokenDown_bed_table This should be the result of breakDownOverlappingBedRegions(bed_table,...),
 #' in case this has already been computed. If left NULL (the default), breakDownOverlappingBedRegions(bed_table)
 #' is called by this function with default parameters
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return list object assigning a set number (integer) to each bed region id
 #' @export
 assignBedRegionsToNonOverlappingSets <- function(bed_table,
-                                                 brokenDown_bed_table=NULL){
+                                                 brokenDown_bed_table = NULL,
+                                                 verbose = TRUE){
   if(is.null(brokenDown_bed_table)){
-    message("[info assignBedRegionsToNonOverlappingSets] running breakDownOverlappingBedRegions...")
-    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table = bed_table)
+    if(verbose) message("[info assignBedRegionsToNonOverlappingSets] running breakDownOverlappingBedRegions...")
+    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table = bed_table,verbose=verbose)
   }
   
   levelAssignmentList <- list()
@@ -458,6 +466,7 @@ assignBedRegionsToNonOverlappingSets <- function(bed_table,
 #' @param pend genomic end location to plot
 #' @param region_colour plot colour for regions in bed_table
 #' @param segments_colour plot colour of non-overlapping segment regions in brokenDown_bed_table
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return list object with the results of breakDownOverlappingBedRegions and assignBedRegionsToNonOverlappingSets function calls
 #' @export
 plotBrokenDownBedRegions <- function(bed_table,
@@ -467,11 +476,12 @@ plotBrokenDownBedRegions <- function(bed_table,
                                      pstart,
                                      pend,
                                      region_colour="#0067a5",
-                                     segments_colour="#F38400"){
+                                     segments_colour="#F38400",
+                                     verbose = TRUE){
   
   if(is.null(brokenDown_bed_table)){
-    message("[info plotBrokenDownBedRegions] running breakDownOverlappingBedRegions...")
-    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table = bed_table)
+    if(verbose) message("[info plotBrokenDownBedRegions] running breakDownOverlappingBedRegions...")
+    brokenDown_bed_table <- breakDownOverlappingBedRegions(bed_table = bed_table,verbose=verbose)
   }
   
   # make sure ids are characters
@@ -488,7 +498,8 @@ plotBrokenDownBedRegions <- function(bed_table,
   selection <- !(brokenDown_bed_table$start > pend | brokenDown_bed_table$end < pstart) & brokenDown_bed_table$chr==chrom
   brokenDown_bed_table <- brokenDown_bed_table[selection,,drop=F]
   levelAssignmentList <- assignBedRegionsToNonOverlappingSets(bed_table = bed_table,
-                                                              brokenDown_bed_table = brokenDown_bed_table)
+                                                              brokenDown_bed_table = brokenDown_bed_table,
+                                                              verbose = verbose)
   
   # OK now I should be able to print
   ymax <- 2 + max(unlist(levelAssignmentList))
@@ -612,10 +623,12 @@ getIMD <- function(positions){
 #' @param bed_table data frame with required columns: chr, start, end, id, and optionally signal
 #' @param aggregateSignalMode when merging bed regions that have a signal column,
 #' options for aggregating signal are sum, mean, or weightedmean (weighted w.r.t size)
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return updated bed_table with merged adjacent regions
 #' @export
 mergeAdjacentBedRegions <- function(bed_table,
-                                    aggregateSignalMode="sum"){
+                                    aggregateSignalMode="sum",
+                                    verbose = TRUE){
   # check required columns
   requiredcolumns <- c("id","chr","start","end")
   if(!all(requiredcolumns %in% colnames(bed_table))){
@@ -624,7 +637,7 @@ mergeAdjacentBedRegions <- function(bed_table,
     return(NULL)
   }
   # check overlaps
-  res_check <- checkBedRegionsOverlap(bed_table=bed_table)
+  res_check <- checkBedRegionsOverlap(bed_table=bed_table,verbose=verbose)
   if(!is.null(res_check)){
     message("[error mergeAdjacentBedRegions] bed_table regions should not overlap, ",
             "you can break them down using the function breakDownOverlappingBedRegions.")
@@ -768,6 +781,7 @@ getChromosomesBedTable <- function(genomev){
 #' 
 #' @param bed_table data frame with required columns: chr, start, end
 #' @param genomev hg19 or hg38
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return updated bed_table
 #' @export
 trimNfromBed <- function(bed_table,
@@ -868,6 +882,7 @@ trimNfromBed <- function(bed_table,
 #' @param cexlabels scaling parameter for the labels
 #' @param ylabel ylabel for the bed_table signal
 #' @param ylabel2 ylabel for the bed_table2 signal
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @export
 plotBedSignalRegion <- function(bed_table,
                                 bed_table2=NULL,
@@ -888,17 +903,18 @@ plotBedSignalRegion <- function(bed_table,
                                 lwd=1.5,
                                 cexlabels=1,
                                 ylabel="signal",
-                                ylabel2="signal"){
+                                ylabel2="signal",
+                                verbose=TRUE){
   
   # check overlaps
-  res_check <- checkBedRegionsOverlap(bed_table=bed_table)
+  res_check <- checkBedRegionsOverlap(bed_table=bed_table,verbose=verbose)
   if(!is.null(res_check)){
     message("[warning plotBedSignalRegion] some bed_table regions overlap. Signal in ",
             "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
             "yourself, you can use the function breakDownOverlappingBedRegions.")
   }
   if(!is.null(bed_table2)){
-    res_check <- checkBedRegionsOverlap(bed_table=bed_table2)
+    res_check <- checkBedRegionsOverlap(bed_table=bed_table2,verbose=verbose)
     if(!is.null(res_check)){
       message("[warning plotBedSignalRegion] some bed_table2 regions overlap. Signal in ",
               "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
@@ -953,7 +969,8 @@ plotBedSignalRegion <- function(bed_table,
   regionBed <- rbind(regionBed,plotBed)
   regionBed$id <- 1:nrow(regionBed)
   res_bd <- breakDownOverlappingBedRegions(bed_table = regionBed,
-                                           aggregateSignalMode = "sum")
+                                           aggregateSignalMode = "sum",
+                                           verbose=verbose)
   # remove segments that are outside the plot region
   plotregionId <- as.character(nrow(regionBed))
   selectRows <- sapply(res_bd$id,function(id){
@@ -974,7 +991,8 @@ plotBedSignalRegion <- function(bed_table,
     regionBed2 <- rbind(regionBed2,plotBed)
     regionBed2$id <- 1:nrow(regionBed2)
     res_bd2 <- breakDownOverlappingBedRegions(bed_table = regionBed2,
-                                              aggregateSignalMode = "sum")
+                                              aggregateSignalMode = "sum",
+                                              verbose=verbose)
     # remove segments that are outside the plot region
     plotregionId <- as.character(nrow(regionBed2))
     selectRows <- sapply(res_bd2$id,function(id){
@@ -1013,9 +1031,11 @@ plotBedSignalRegion <- function(bed_table,
         tmpgenetable$start[j] <- round(min(tmpgenetable$start[j],genemiddlepoint-geneNamesBasesSize[j]/2))
         tmpgenetable$end[j] <- round(max(tmpgenetable$end[j],genemiddlepoint+geneNamesBasesSize[j]/2))
       }
-      genes_res <- breakDownOverlappingBedRegions(bed_table = tmpgenetable)
+      genes_res <- breakDownOverlappingBedRegions(bed_table = tmpgenetable,
+                                                  verbose = verbose)
       levelAssignmentList <- assignBedRegionsToNonOverlappingSets(bed_table = tmpgenetable,
-                                                                  brokenDown_bed_table = genes_res)
+                                                                  brokenDown_bed_table = genes_res,
+                                                                  verbose = verbose)
     }
   }
   
@@ -1350,12 +1370,14 @@ plotBedSignalRegion <- function(bed_table,
 #' @param bed_table data frame with required columns: chr, start, end
 #' @param extended length in number of bases by which each region should be
 #' extended in both directions
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return updated bed_table
 #' @export
 extendBedRegionsWithNoOverlap <- function(bed_table,
-                                          extended){
+                                          extended,
+                                          verbose=TRUE){
   # check no overlap before extension
-  overlapChroms <- checkBedRegionsOverlap(bed_table = bed_table)
+  overlapChroms <- checkBedRegionsOverlap(bed_table = bed_table,verbose=verbose)
   if(!is.null(overlapChroms)){
     message("[error extendBedRegionsWithNoOverlap] regions in bed_table should not overlap, ",
             "you can break them down using the function breakDownOverlappingBedRegions.")
@@ -1431,9 +1453,11 @@ extendBedRegions <- function(bed_table,
 #' as well as the average IRD. Regions must be non-overlapping
 #' 
 #' @param bed_table data frame with required columns: chr, start, end 
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return left, right and average inter-region distance
 #' @export
-getIRD <- function(bed_table){
+getIRD <- function(bed_table,
+                   verbose = TRUE){
   # some checks
   requiredcolumns_pos <- c("chr","start","end")
   if(!all(requiredcolumns_pos %in% colnames(bed_table))){
@@ -1443,7 +1467,7 @@ getIRD <- function(bed_table){
   }
   
   # I need to check that there are no overlaps
-  overlapChroms <- checkBedRegionsOverlap(bed_table = bed_table)
+  overlapChroms <- checkBedRegionsOverlap(bed_table = bed_table,verbose=verbose)
   if(!is.null(overlapChroms)){
     message("[error getIRD] regions in bed_table should not overlap, ",
             "you can break them down using the function breakDownOverlappingBedRegions.")
@@ -1610,10 +1634,12 @@ bedpeBreakpointsToPositions <- function(sv_bedpe,
 #' 
 #' @param bed_table data frame with required columns: id, chr, start, end, and optionally class
 #' @param genomev hg19 or hg38
+#' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @return trimmed bed regions
 #' @export
 trimBlacklistedFromBed <- function(bed_table,
-                                   genomev){
+                                   genomev,
+                                   verbose = TRUE){
   # check required columns
   requiredcolumns <- c("id","chr","start","end")
   if(!all(requiredcolumns %in% colnames(bed_table))){
@@ -1623,7 +1649,8 @@ trimBlacklistedFromBed <- function(bed_table,
   }
   
   # check overlaps
-  res_check <- checkBedRegionsOverlap(bed_table=bed_table)
+  res_check <- checkBedRegionsOverlap(bed_table = bed_table,
+                                      verbose = verbose)
   if(!is.null(res_check)){
     message("[error trimBlacklistedFromBed] bed_table regions should not overlap, ",
             "you can break them down using the function breakDownOverlappingBedRegions.")
@@ -1646,7 +1673,8 @@ trimBlacklistedFromBed <- function(bed_table,
   
   res_bd <- intersectBed_nonOverlapping(bed_table1 = bed_table,
                                         bed_table2 = mappableRegions[,c("id","chr","start","end"),drop=F],
-                                        computeStats = FALSE)
+                                        computeStats = FALSE,
+                                        verbose = verbose)
   new_bed_table <- res_bd$intersectionTable[res_bd$intersectionTable$bedtable=="shared",,drop=F]
   new_bed_table$id <- new_bed_table$segment1
   if("class" %in% colnames(bed_table)){

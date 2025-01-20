@@ -4,10 +4,12 @@
 \alias{checkBedRegionsOverlap}
 \title{Check existence of bed regions overlaps}
 \usage{
-checkBedRegionsOverlap(bed_table)
+checkBedRegionsOverlap(bed_table, verbose = TRUE)
 }
 \arguments{
 \item{bed_table}{data frame with at least three required columns: chr, start, end}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 NULL if no overlaps are found, or a list of chromosome names where overlaps were found

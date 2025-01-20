@@ -10,6 +10,8 @@ trimNfromBed(bed_table, genomev, verbose = FALSE)
 \item{bed_table}{data frame with required columns: chr, start, end}
 
 \item{genomev}{hg19 or hg38}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 updated bed_table

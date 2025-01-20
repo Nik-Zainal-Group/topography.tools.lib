@@ -4,13 +4,15 @@
 \alias{mergeAdjacentBedRegions}
 \title{Merge adjacent bed regions}
 \usage{
-mergeAdjacentBedRegions(bed_table, aggregateSignalMode = "sum")
+mergeAdjacentBedRegions(bed_table, aggregateSignalMode = "sum", verbose = TRUE)
 }
 \arguments{
 \item{bed_table}{data frame with required columns: chr, start, end, id, and optionally signal}
 
 \item{aggregateSignalMode}{when merging bed regions that have a signal column,
 options for aggregating signal are sum, mean, or weightedmean (weighted w.r.t size)}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 updated bed_table with merged adjacent regions

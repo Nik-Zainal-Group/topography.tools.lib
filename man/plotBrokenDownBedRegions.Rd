@@ -12,7 +12,8 @@ plotBrokenDownBedRegions(
   pstart,
   pend,
   region_colour = "#0067a5",
-  segments_colour = "#F38400"
+  segments_colour = "#F38400",
+  verbose = TRUE
 )
 }
 \arguments{
@@ -33,6 +34,8 @@ is called by this function with default parameters}
 \item{region_colour}{plot colour for regions in bed_table}
 
 \item{segments_colour}{plot colour of non-overlapping segment regions in brokenDown_bed_table}
+
+\item{verbose}{set to FALSE to suppress the info messages. Warning and error messages will still be shown}
 }
 \value{
 list object with the results of breakDownOverlappingBedRegions and assignBedRegionsToNonOverlappingSets function calls
