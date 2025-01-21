@@ -435,7 +435,8 @@ intersectPositionsAndBedRegions <- function(positions,
   }
   
   # check which chromosomes have overlap if any
-  overlapChroms <- checkBedRegionsOverlap(bed_table)
+  overlapChroms <- checkBedRegionsOverlap(bed_table,
+                                          verbose = verbose)
   if(is.null(overlapChroms)){
     # bed_regions are non-overlapping, we can just use the non-overlapping function
     if(verbose) message("[info intersectPositionsAndBedRegions] bed_table regions are not overlapping: running intersectPositionsAndBedRegions_nonOverlapping")
@@ -469,7 +470,7 @@ intersectPositionsAndBedRegions <- function(positions,
                                              idMap2 = tmpres$idMapRegionsToPositions)
     }
     
-    message("[info intersectPositionsAndBedRegions] calculating intersect stats")
+    if(verbose) message("[info intersectPositionsAndBedRegions] calculating intersect stats")
     # now just get the stats
     res_stats <- intersectionStatsComplete(idMap1to2 = idMapPositionsToRegions,
                                            idMap2to1 = idMapRegionsToPositions,
@@ -611,9 +612,9 @@ intersectBed_nonOverlapping <- function(bed_table1,
       chrom_regions2 <- bed_table2[bed_table2$chr==chrom,,drop=F]
       if (nrow(chrom_regions1)==0 & nrow(chrom_regions2)==0){
         # nothing to add
-        message("[info intersectBed_nonOverlapping] No regions in chromosome ",chrom)
+        if(verbose) message("[info intersectBed_nonOverlapping] No regions in chromosome ",chrom)
       }else if (nrow(chrom_regions1)==0){
-        message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions in chromosome ",chrom)
+        if(verbose) message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions in chromosome ",chrom)
         com_table <- rbind(com_table,
                            data.frame(chr=chrom_regions2$chr,
                                       start=chrom_regions2$start,
@@ -623,7 +624,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                       segment2=chrom_regions2$segmentid,
                                       stringsAsFactors = F))
       }else if (nrow(chrom_regions2)==0){
-        message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions in chromosome ",chrom)
+        if(verbose) message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions in chromosome ",chrom)
         com_table <- rbind(com_table,
                            data.frame(chr=chrom_regions1$chr,
                                       start=chrom_regions1$start,
