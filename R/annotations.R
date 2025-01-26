@@ -34,8 +34,18 @@ annotateBedWithGenes <- function(bed_table,
   
   if(!startsWith(as.character(bed_table$chr[1]),prefix = "chr")) genetable$chr <- substr(genetable$chr,4,5)
 
+  # remove genetable areas of no interest
+  genetable <- genetable[genetable$chr %in% unique(bed_table$chr),,drop=F]
+  genetablereduced <- NULL
+  for(chr in unique(bed_table$chr)){
+    minbed <- min(bed_table$start[bed_table$chr==chr])
+    maxbed <- max(bed_table$end[bed_table$chr==chr])
+    tmpgenetable <- genetable[genetable$chr==chr,,drop=F]
+    genetablereduced <- rbind(tmpgenetable[!(tmpgenetable$start>maxbed | tmpgenetable$end<minbed),,drop=F])
+  }
+  
   corr_res <- intersectBed(bed_table1 = bed_table,
-                           bed_table2 = genetable,
+                           bed_table2 = genetablereduced,
                            verbose = verbose)
   
   bed_table <- corr_res$annotatedBedRegions1
@@ -48,7 +58,7 @@ annotateBedWithGenes <- function(bed_table,
       return("")
     }else{
       ids <- strsplit(x,split = ";")[[1]]
-      tmpgenenames <- genetable[ids,c("genename"),drop=T]
+      tmpgenenames <- genetablereduced[ids,c("genename"),drop=T]
       return(paste(tmpgenenames,collapse = ";"))
     }
   },USE.NAMES = F)
