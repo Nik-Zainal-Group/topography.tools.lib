@@ -41,7 +41,7 @@ annotateBedWithGenes <- function(bed_table,
     minbed <- min(bed_table$start[bed_table$chr==chr])
     maxbed <- max(bed_table$end[bed_table$chr==chr])
     tmpgenetable <- genetable[genetable$chr==chr,,drop=F]
-    genetablereduced <- rbind(tmpgenetable[!(tmpgenetable$start>maxbed | tmpgenetable$end<minbed),,drop=F])
+    genetablereduced <- rbind(genetablereduced,tmpgenetable[!(tmpgenetable$start>maxbed | tmpgenetable$end<minbed),,drop=F])
   }
   
   corr_res <- intersectBed(bed_table1 = bed_table,
