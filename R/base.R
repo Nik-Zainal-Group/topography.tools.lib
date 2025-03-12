@@ -904,6 +904,7 @@ plotBedSignalRegion <- function(bed_table,
                                 cexlabels=1,
                                 ylabel="signal",
                                 ylabel2="signal",
+                                useSameScaleForBothSignals=F,
                                 verbose=TRUE){
   
   # check overlaps
@@ -1043,6 +1044,12 @@ plotBedSignalRegion <- function(bed_table,
   # infer more parameters for plotting
   signalMin <- min(0,min(res_bd$signal))
   signalMax <- max(1,max(res_bd$signal))
+  if(useSameScaleForBothSignals & !is.null(res_bd2)){
+    signalMin2 <- min(0,min(res_bd2$signal))
+    signalMax2 <- max(1,max(res_bd2$signal))
+    signalMin <- min(signalMin,signalMin2)
+    signalMax <- max(signalMax,signalMax2)
+  }
   ydatagap <- 0.05*(signalMax-signalMin)
   ydatagapTop <- 0.15*(signalMax-signalMin)
   ylimData <- c(signalMin-ydatagap,signalMax+ydatagapTop)
@@ -1253,6 +1260,12 @@ plotBedSignalRegion <- function(bed_table,
   if(!is.null(res_bd2)){
     signalMin <- min(0,min(res_bd2$signal))
     signalMax <- max(1,max(res_bd2$signal))
+    if(useSameScaleForBothSignals & !is.null(res_bd)){
+      signalMin2 <- min(0,min(res_bd$signal))
+      signalMax2 <- max(1,max(res_bd$signal))
+      signalMin <- min(signalMin,signalMin2)
+      signalMax <- max(signalMax,signalMax2)
+    }
     ydatagap <- 0.05*(signalMax-signalMin)
     ydatagapTop <- 0.15*(signalMax-signalMin)
     ylimData <- c(signalMin-ydatagap,signalMax+ydatagapTop)

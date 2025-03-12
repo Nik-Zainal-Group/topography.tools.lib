@@ -25,6 +25,7 @@ plotBedSignalRegion(
   cexlabels = 1,
   ylabel = "signal",
   ylabel2 = "signal",
+  useSameScaleForBothSignals = F,
   verbose = TRUE
 )
 }
