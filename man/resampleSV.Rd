@@ -15,7 +15,7 @@ resampleSV(
 )
 }
 \arguments{
-\item{sv_bedpe}{data.frame with positions, required columns are: chrom1, start1, end1, chrom2, start2, end2, svclass}
+\item{sv_bedpe}{data.frame with required columns: chrom1, start1, end1, chrom2, start2, end2, svclass}
 
 \item{genomev}{reference genome version, hg19 or hg38. This parameter will be used only if
 samplingRegions is NULL, to load the samplingRegions for the corresponding reference genome}

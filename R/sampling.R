@@ -315,7 +315,7 @@ resampleBedRegions <- function(bed_table,
 #' for each region, the corresponding subsets of regions in the same chromosome will
 #' be selected.
 #' 
-#' @param sv_bedpe data.frame with positions, required columns are: chrom1, start1, end1, chrom2, start2, end2, svclass
+#' @param sv_bedpe data.frame with required columns: chrom1, start1, end1, chrom2, start2, end2, svclass
 #' @param samplingRegions data frame containing bed regions, with required columns chr, start, end,
 #' and optionally regionprob. If regionprob is missing, it will be proportional to the region sizes 
 #' for each chromosome. If NULL, samplingRegions will be the set of regions that are mappable and 

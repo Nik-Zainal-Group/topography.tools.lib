@@ -32,6 +32,10 @@ or bed regions with other genomic features.
 
 ## Versions
 
+1.1.0
+
+- convert position and bed region data to window data
+
 1.0.0
 
 - first version contains basic functions for positions and bed regions intersections and their statistical significance
@@ -129,4 +133,11 @@ Function for annotating positions or bed regions:
 
 - **```annotateBedWithGenes```**: annotate a set of bed regions with genes
 
+Function for window data
+
+- **```formatPositionDataToWindow```**: count positions in windows
+- **```formatBedDataToWindow```**: find bed region overlap in windows
+- **```formatBedpeBreakpointsDataToWindow```**: count breakpoints in windows
+- **```sortWindowData```**: sort window data
+- **```mergeWindowData```**: merge two window data tables
 

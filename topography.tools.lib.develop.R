@@ -33,6 +33,7 @@ devtools::test(pkg = ".",filter = "intersections")
 devtools::test(pkg = ".",filter = "annotations")
 devtools::test(pkg = ".",filter = "sampling")
 devtools::test(pkg = ".",filter = "correlation")
+devtools::test(pkg = ".",filter = "windowdata")
 
 
 
