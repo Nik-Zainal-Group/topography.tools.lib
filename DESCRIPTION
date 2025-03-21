@@ -1,6 +1,6 @@
 Package: topography.tools.lib
 Title: topography.tools.lib
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: person("Andrea", "Degasperi", email = "ad923@cam.ac.uk", role = c("aut", "cre"))
 Description: R package for the analysis of genomic features
 License: see LICENCE file
