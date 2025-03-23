@@ -862,12 +862,16 @@ trimNfromBed <- function(bed_table,
 #' 
 #' @param bed_table data frame with required columns: chr, start, end, signal
 #' @param bed_table2 data frame with required columns: chr, start, end, signal
+#' @param bed_table_list list of data frame with required columns: chr, start, end, signal.
+#' List names are used in the legend
 #' @param fileout name of the output file for the plot, use .pdf extension
 #' @param pchr chromosome name of the region to plot
 #' @param pstart left boundary position of the genomic region to plot
 #' @param pend right boundary position of the genomic region to plot
 #' @param signalColour colour of the signal line
 #' @param signalColour2 colour of the second signal line from bed_table2
+#' @param signalColour_list list object with colours for the bed_table_list signals.
+#' Use the same list names to match the tables in bed_table_list.
 #' @param highlightRegions highlightRegions is a list of bed tables (chr, start, end)
 #' @param highlightRegionsColours highlightRegionsColours is a list of colours.
 #' The names of the list need to match the names of the highlightRegions list
@@ -884,14 +888,16 @@ trimNfromBed <- function(bed_table,
 #' @param ylabel2 ylabel for the bed_table2 signal
 #' @param verbose set to FALSE to suppress the info messages. Warning and error messages will still be shown
 #' @export
-plotBedSignalRegion <- function(bed_table,
+plotBedSignalRegion <- function(bed_table=NULL,
                                 bed_table2=NULL,
+                                bed_table_list=NULL,
                                 fileout=NULL,
                                 pchr,
                                 pstart,
                                 pend,
                                 signalColour="black",
                                 signalColour2="grey",
+                                signalColour_list=NULL,
                                 highlightRegions=NULL,
                                 highlightRegionsColours=NULL,
                                 highlightPositions=NULL,
@@ -906,13 +912,20 @@ plotBedSignalRegion <- function(bed_table,
                                 ylabel2="signal",
                                 useSameScaleForBothSignals=F,
                                 verbose=TRUE){
+  # check we have data
+  if(is.null(bed_table) & is.null(bed_table2) & is.null(bed_table_list)){
+    message("[error plotBedSignalRegion] no signal to plot.")
+    return(NULL)
+  }
   
   # check overlaps
-  res_check <- checkBedRegionsOverlap(bed_table=bed_table,verbose=verbose)
-  if(!is.null(res_check)){
-    message("[warning plotBedSignalRegion] some bed_table regions overlap. Signal in ",
-            "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
-            "yourself, you can use the function breakDownOverlappingBedRegions.")
+  if(!is.null(bed_table)){
+    res_check <- checkBedRegionsOverlap(bed_table=bed_table,verbose=verbose)
+    if(!is.null(res_check)){
+      message("[warning plotBedSignalRegion] some bed_table regions overlap. Signal in ",
+              "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
+              "yourself, you can use the function breakDownOverlappingBedRegions.")
+    }
   }
   if(!is.null(bed_table2)){
     res_check <- checkBedRegionsOverlap(bed_table=bed_table2,verbose=verbose)
@@ -920,6 +933,16 @@ plotBedSignalRegion <- function(bed_table,
       message("[warning plotBedSignalRegion] some bed_table2 regions overlap. Signal in ",
               "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
               "yourself, you can use the function breakDownOverlappingBedRegions.")
+    }
+  }
+  if(!is.null(bed_table_list)){
+    for(tn in names(bed_table_list)){
+      res_check <- checkBedRegionsOverlap(bed_table=bed_table_list[[tn]],verbose=verbose)
+      if(!is.null(res_check)){
+        message("[warning plotBedSignalRegion] some regions in bed_table_list ",tn," overlap. Signal in ",
+                "overlapping segments will be summed. If you prefer to resolve overlapping segments ",
+                "yourself, you can use the function breakDownOverlappingBedRegions.")
+      }
     }
   }
   
@@ -943,10 +966,13 @@ plotBedSignalRegion <- function(bed_table,
   pchr <- as.character(pchr)
   
   # select the data that is overlapping the region of interest
-  regionBed <- bed_table[bed_table$chr==pchr,,drop=F]
-  if(nrow(regionBed)>0){
-    selection <- !(regionBed$start > pend | regionBed$end < pstart)
-    regionBed <- regionBed[selection,,drop=F]
+  regionBed <- NULL
+  if(!is.null(bed_table)){
+    regionBed <- bed_table[bed_table$chr==pchr,,drop=F]
+    if(nrow(regionBed)>0){
+      selection <- !(regionBed$start > pend | regionBed$end < pstart)
+      regionBed <- regionBed[selection,,drop=F]
+    }
   }
   # same for bed_table2 if any
   regionBed2 <- NULL
@@ -957,29 +983,44 @@ plotBedSignalRegion <- function(bed_table,
       regionBed2 <- regionBed2[selection,,drop=F]
     }
   }
+  # same for the list of bed_tables
+  regionBed_list <- NULL
+  if(!is.null(bed_table_list)){
+    regionBed_list <- list()
+    for(tn in names(bed_table_list)){
+      regionBed_list[[tn]] <- bed_table_list[[tn]][bed_table_list[[tn]]$chr==pchr,,drop=F]
+      if(nrow(regionBed_list[[tn]])>0){
+        selection <- !(regionBed_list[[tn]]$start > pend | regionBed_list[[tn]]$end < pstart)
+        regionBed_list[[tn]] <- regionBed_list[[tn]][selection,,drop=F]
+      }
+    }
+  }
   
   # before we plot, let's check that we have data for all positions in the region
   # we can do that by adding one bed region from start to end with zero signal
   # and break down the overlap
-  regionBed <- regionBed[,c("chr", "start", "end", "signal"),drop=F]
-  plotBed <- data.frame(chr=pchr,
-                        start=pstart,
-                        end=pend,
-                        signal=0,
-                        stringsAsFactors = F)
-  regionBed <- rbind(regionBed,plotBed)
-  regionBed$id <- 1:nrow(regionBed)
-  res_bd <- breakDownOverlappingBedRegions(bed_table = regionBed,
-                                           aggregateSignalMode = "sum",
-                                           verbose=verbose)
-  # remove segments that are outside the plot region
-  plotregionId <- as.character(nrow(regionBed))
-  selectRows <- sapply(res_bd$id,function(id){
-    ids <- strsplit(id,split = ";")[[1]]
-    return(plotregionId %in% ids)
-  },USE.NAMES = F)
-  res_bd <- res_bd[selectRows,,drop=F]
-  
+  res_bd <- NULL
+  if(!is.null(regionBed)){
+    regionBed <- regionBed[,c("chr", "start", "end", "signal"),drop=F]
+    plotBed <- data.frame(chr=pchr,
+                          start=pstart,
+                          end=pend,
+                          signal=0,
+                          stringsAsFactors = F)
+    regionBed <- rbind(regionBed,plotBed)
+    regionBed$id <- 1:nrow(regionBed)
+    res_bd <- breakDownOverlappingBedRegions(bed_table = regionBed,
+                                             aggregateSignalMode = "sum",
+                                             verbose=verbose)
+    # remove segments that are outside the plot region
+    plotregionId <- as.character(nrow(regionBed))
+    selectRows <- sapply(res_bd$id,function(id){
+      ids <- strsplit(id,split = ";")[[1]]
+      return(plotregionId %in% ids)
+    },USE.NAMES = F)
+    res_bd <- res_bd[selectRows,,drop=F]
+    chrFormat <- as.character(res_bd$chr[1])
+  }
   # same for bed_table2
   res_bd2 <- NULL
   if(!is.null(regionBed2)){
@@ -1001,6 +1042,33 @@ plotBedSignalRegion <- function(bed_table,
       return(plotregionId %in% ids)
     },USE.NAMES = F)
     res_bd2 <- res_bd2[selectRows,,drop=F]
+    chrFormat <- as.character(res_bd2$chr[1])
+  }
+  # same for bed_table_list
+  res_bd_list <- NULL
+  if(!is.null(regionBed_list)){
+    res_bd_list <- list()
+    for(tn in names(bed_table_list)){
+      regionBed_list[[tn]] <- regionBed_list[[tn]][,c("chr", "start", "end", "signal"),drop=F]
+      plotBed <- data.frame(chr=pchr,
+                            start=pstart,
+                            end=pend,
+                            signal=0,
+                            stringsAsFactors = F)
+      regionBed_list[[tn]] <- rbind(regionBed_list[[tn]],plotBed)
+      regionBed_list[[tn]]$id <- 1:nrow(regionBed_list[[tn]])
+      res_bd_list[[tn]] <- breakDownOverlappingBedRegions(bed_table = regionBed_list[[tn]],
+                                                          aggregateSignalMode = "sum",
+                                                          verbose=verbose)
+      # remove segments that are outside the plot region
+      plotregionId <- as.character(nrow(regionBed_list[[tn]]))
+      selectRows <- sapply(res_bd_list[[tn]]$id,function(id){
+        ids <- strsplit(id,split = ";")[[1]]
+        return(plotregionId %in% ids)
+      },USE.NAMES = F)
+      res_bd_list[[tn]] <- res_bd_list[[tn]][selectRows,,drop=F]
+    }
+    chrFormat <- as.character(res_bd_list[[1]]$chr[1])
   }
   
   # get Genes
@@ -1018,7 +1086,7 @@ plotBedSignalRegion <- function(bed_table,
     }
     # only protein coding
     if(proteinCodingOnly) genetable <- genetable[genetable$genetype=="protein_coding",,drop=F]
-    if(!startsWith(as.character(bed_table$chr[1]),prefix = "chr")) genetable$chr <- substr(genetable$chr,4,5)
+    if(!startsWith(chrFormat,prefix = "chr")) genetable$chr <- substr(genetable$chr,4,5)
     # select only the relevant part of the table
     genetable <- genetable[genetable$chr==pchr,,drop=F]
     genetable <- genetable[!(genetable$start > pend | genetable$end < pstart),,drop=F]
@@ -1042,14 +1110,30 @@ plotBedSignalRegion <- function(bed_table,
   
   
   # infer more parameters for plotting
-  signalMin <- min(0,min(res_bd$signal))
-  signalMax <- max(1,max(res_bd$signal))
+  
+  signalMin <- 0
+  signalMax <- 0
+  signalMin2 <- 0
+  signalMax2 <- 0
+  if(!is.null(res_bd)){
+    signalMin <- min(signalMin,min(res_bd$signal))
+    signalMax <- max(signalMax,max(res_bd$signal))
+  }
+  if(!is.null(res_bd_list)){
+    for(tn in names(res_bd_list)){
+      signalMin <- min(signalMin,min(res_bd_list[[tn]]$signal))
+      signalMax <- max(signalMax,max(res_bd_list[[tn]]$signal))
+    }
+  }
   if(useSameScaleForBothSignals & !is.null(res_bd2)){
-    signalMin2 <- min(0,min(res_bd2$signal))
-    signalMax2 <- max(1,max(res_bd2$signal))
+    signalMin2 <- min(signalMin2,min(res_bd2$signal))
+    signalMax2 <- max(signalMax2,max(res_bd2$signal))
     signalMin <- min(signalMin,signalMin2)
     signalMax <- max(signalMax,signalMax2)
   }
+  if(signalMax==0) signalMax <- 1
+  if(signalMax2==0) signalMax2 <- 1
+  
   ydatagap <- 0.05*(signalMax-signalMin)
   ydatagapTop <- 0.15*(signalMax-signalMin)
   ylimData <- c(signalMin-ydatagap,signalMax+ydatagapTop)
@@ -1150,29 +1234,74 @@ plotBedSignalRegion <- function(bed_table,
          col.ticks=signalColour,
          col.axis=signalColour)
   }
-  if(nrow(res_bd)>0){
-    # if there is at least one segment to draw, draw a line
-    currentSegment <- c(res_bd[1,"start"],res_bd[1,"end"])
-    lines(as.numeric(currentSegment)/1e6,
-          rep(res_bd$signal[1],2),
-          lwd=lwd,
-          col=signalColour)
-    if(nrow(res_bd)>1){
-      for(i in 2:nrow(res_bd)){
-        # i <- 2
-        previousSegment <- currentSegment
-        currentSegment <- c(res_bd[i,"start"],res_bd[i,"end"])
-        lines(rep(as.numeric(previousSegment[2]),2)/1e6,
-              c(res_bd$signal[i-1],res_bd$signal[i]),
-              lwd=lwd,
-              col=signalColour)
-        lines(as.numeric(currentSegment)/1e6,
-              rep(res_bd$signal[i],2),
-              lwd=lwd,
-              col=signalColour)
+  if(!is.null(res_bd)){
+    if(nrow(res_bd)>0){
+      # if there is at least one segment to draw, draw a line
+      currentSegment <- c(res_bd[1,"start"],res_bd[1,"end"])
+      lines(as.numeric(currentSegment)/1e6,
+            rep(res_bd$signal[1],2),
+            lwd=lwd,
+            col=signalColour)
+      if(nrow(res_bd)>1){
+        for(i in 2:nrow(res_bd)){
+          # i <- 2
+          previousSegment <- currentSegment
+          currentSegment <- c(res_bd[i,"start"],res_bd[i,"end"])
+          lines(rep(as.numeric(previousSegment[2]),2)/1e6,
+                c(res_bd$signal[i-1],res_bd$signal[i]),
+                lwd=lwd,
+                col=signalColour)
+          lines(as.numeric(currentSegment)/1e6,
+                rep(res_bd$signal[i],2),
+                lwd=lwd,
+                col=signalColour)
+        }
       }
     }
   }
+
+  # plot the list too
+  legendColours <- NULL
+  if(!is.null(res_bd_list)){
+    legendColours <- c()
+    for(tn in names(res_bd_list)){
+      if(nrow(res_bd_list[[tn]])>0){
+        if(!is.null(signalColour_list[[tn]])){
+          currentSignalColour <- signalColour_list[[tn]]
+        }else{
+          currentSignalColour <- "black"
+        }
+        legendColours <- c(legendColours,currentSignalColour)
+        # if there is at least one segment to draw, draw a line
+        currentSegment <- c(res_bd_list[[tn]][1,"start"],res_bd_list[[tn]][1,"end"])
+        lines(as.numeric(currentSegment)/1e6,
+              rep(res_bd_list[[tn]]$signal[1],2),
+              lwd=lwd,
+              col=currentSignalColour)
+        if(nrow(res_bd_list[[tn]])>1){
+          for(i in 2:nrow(res_bd_list[[tn]])){
+            # i <- 2
+            previousSegment <- currentSegment
+            currentSegment <- c(res_bd_list[[tn]][i,"start"],res_bd_list[[tn]][i,"end"])
+            lines(rep(as.numeric(previousSegment[2]),2)/1e6,
+                  c(res_bd_list[[tn]]$signal[i-1],res_bd_list[[tn]]$signal[i]),
+                  lwd=lwd,
+                  col=currentSignalColour)
+            lines(as.numeric(currentSegment)/1e6,
+                  rep(res_bd_list[[tn]]$signal[i],2),
+                  lwd=lwd,
+                  col=currentSignalColour)
+          }
+        }
+      }
+    }
+    legend("right",
+           legend = names(res_bd_list),
+           fill = legendColours,
+           border = NA,
+           bty = "n")
+  }
+
   
   # now plot the highlight regions if any
   if(nhighlightregions>0){
@@ -1258,14 +1387,18 @@ plotBedSignalRegion <- function(bed_table,
   
   # I can only add the second signal after everything else has been plotted
   if(!is.null(res_bd2)){
+    signalMin2 <- signalMin
+    signalMax2 <- signalMax
     signalMin <- min(0,min(res_bd2$signal))
-    signalMax <- max(1,max(res_bd2$signal))
+    signalMax <- max(0,max(res_bd2$signal))
     if(useSameScaleForBothSignals & !is.null(res_bd)){
-      signalMin2 <- min(0,min(res_bd$signal))
-      signalMax2 <- max(1,max(res_bd$signal))
+      # signalMin2 <- min(0,min(res_bd$signal))
+      # signalMax2 <- max(0,max(res_bd$signal))
       signalMin <- min(signalMin,signalMin2)
       signalMax <- max(signalMax,signalMax2)
     }
+    if(signalMax==0) signalMax <- 1
+    
     ydatagap <- 0.05*(signalMax-signalMin)
     ydatagapTop <- 0.15*(signalMax-signalMin)
     ylimData <- c(signalMin-ydatagap,signalMax+ydatagapTop)

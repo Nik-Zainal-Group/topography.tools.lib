@@ -5,14 +5,16 @@
 \title{Plot signal of bed regions}
 \usage{
 plotBedSignalRegion(
-  bed_table,
+  bed_table = NULL,
   bed_table2 = NULL,
+  bed_table_list = NULL,
   fileout = NULL,
   pchr,
   pstart,
   pend,
   signalColour = "black",
   signalColour2 = "grey",
+  signalColour_list = NULL,
   highlightRegions = NULL,
   highlightRegionsColours = NULL,
   highlightPositions = NULL,
@@ -34,6 +36,9 @@ plotBedSignalRegion(
 
 \item{bed_table2}{data frame with required columns: chr, start, end, signal}
 
+\item{bed_table_list}{list of data frame with required columns: chr, start, end, signal.
+List names are used in the legend}
+
 \item{fileout}{name of the output file for the plot, use .pdf extension}
 
 \item{pchr}{chromosome name of the region to plot}
@@ -45,6 +50,9 @@ plotBedSignalRegion(
 \item{signalColour}{colour of the signal line}
 
 \item{signalColour2}{colour of the second signal line from bed_table2}
+
+\item{signalColour_list}{list object with colours for the bed_table_list signals.
+Use the same list names to match the tables in bed_table_list.}
 
 \item{highlightRegions}{highlightRegions is a list of bed tables (chr, start, end)}
 
