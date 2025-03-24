@@ -274,10 +274,10 @@ test_that("test plotBedSignalRegion with two signals as list", {
                            signal=c(5),
                            id=c(1),
                            stringsAsFactors = F)
-  bed_table_list <- list(t1=bed_table,
-                         t2=bed_table2)
-  signalColour_list <- list(t1="purple",
-                            t2="darkred")
+  bed_table_list <- list(table1=bed_table,
+                         table2=bed_table2)
+  signalColour_list <- list(table1="purple",
+                            table2="darkred")
   
   
   filename <- "test-plotBedSignalRegion2list.pdf"
@@ -287,6 +287,43 @@ test_that("test plotBedSignalRegion with two signals as list", {
                                   fileout = filename,
                                   pchr = 1,
                                   pstart = 1,
+                                  pend = 200000)
+  
+  expect_true(file.exists(filename))
+  
+  unlink(filename)
+  
+})
+
+
+test_that("test plotBedSignalRegion with two signals as list, with bed_table2", {
+  
+  bed_table <- data.frame(chr=c(1,1),
+                          start=c(10000,50000),
+                          end=c(100000,150000),
+                          signal=c(1,2),
+                          text=c(10,20),
+                          id=c(1,2),
+                          stringsAsFactors = F)
+  bed_table2 <- data.frame(chr=c(1),
+                           start=c(90000),
+                           end=c(220000),
+                           signal=c(5),
+                           id=c(1),
+                           stringsAsFactors = F)
+  bed_table_list <- list(table1=bed_table)
+  signalColour_list <- list(table1="purple")
+  
+  
+  filename <- "test-plotBedSignalRegion2listAndSignal2.pdf"
+  
+  sets_res <- plotBedSignalRegion(bed_table_list = bed_table_list,
+                                  bed_table2 = bed_table2,
+                                  signalColour_list = signalColour_list,
+                                  signalColour2 = "darkred",
+                                  fileout = filename,
+                                  pchr = 1,
+                                  pstart = 100000,
                                   pend = 200000)
   
   expect_true(file.exists(filename))

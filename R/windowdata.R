@@ -271,3 +271,31 @@ mergeWindowData <- function(windowData1,
   return(sortWindowData(windowData = resultWindowData))
 }
 
+#' Get bed table from window data
+#'
+#' A data frame containing window data has the window coordinates as row names. 
+#' This function can be used to extract the window coordinates from the row names
+#' and add them to the table as chr, start, end columns.
+#' 
+#' @param windowData data.frame where the row names have the format chr_start_end
+#' @return bed data frame
+#' @export
+getBedFromWindowData <- function(windowData){
+  # get location of each row
+  locationsTable <- as.data.frame(do.call(rbind,sapply(rownames(windowData),
+                                                       function(x) strsplit(x,split = "_"),
+                                                       simplify = T,USE.NAMES = F)),
+                                  stringsAsFactors = F)
+  colnames(locationsTable) <- c("chr","start","end")
+  locationsTable$start <- as.numeric(locationsTable$start)
+  locationsTable$end <- as.numeric(locationsTable$end)
+  locationsTable <- cbind(locationsTable,windowData)
+  return(locationsTable)
+}
+
+getBedCoordinatesFromWindowDataRownames <- function(windowData){
+  # get location of each row
+  locationsTable <- getBedFromWindowData(windowData = windowData)
+  locationsTable <- locationsTable[,c("chr","start","end"),drop=F]
+  return(locationsTable)
+}

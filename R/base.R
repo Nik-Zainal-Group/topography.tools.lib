@@ -957,6 +957,12 @@ plotBedSignalRegion <- function(bed_table=NULL,
   if(!is.null(bed_table2)){
     mright <- max(mright,1)
   }
+  if(!is.null(bed_table_list)){
+    mright_shift <- 0.7
+    if(!is.null(bed_table2)) mright_shift <- 1.35
+    mright_signal_list <- mright_shift+(max(strwidth(names(bed_table_list),units = "inch",cex = 1,ps = par(ps=12))))
+    mright <- max(mright,mright_signal_list)
+  }
   datawidth <- 6
   dataheight <- 1.2
   highlightRegionHeightInch <- 0.2
@@ -1295,11 +1301,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
         }
       }
     }
-    legend("right",
-           legend = names(res_bd_list),
-           fill = legendColours,
-           border = NA,
-           bty = "n")
+    
   }
 
   
@@ -1497,6 +1499,41 @@ plotBedSignalRegion <- function(bed_table=NULL,
         }
       }
     }
+  }
+  
+  # add legend bottom right
+  if(!is.null(res_bd_list)){
+    par(fig=c(0,1,mbottom/pheight,(mbottom+dataheight)/pheight),
+        new=TRUE,
+        mai=c(0,mleft,0,mright),mgp=c(2.5,0.9,0))
+    plot(NA,
+         xlim=c(0,1),
+         bty="n",
+         ylim=c(0,1),
+         main="",
+         ylab="",
+         xaxs="i",
+         yaxs="i",
+         yaxt="n",
+         xaxt="n",
+         xlab="")
+    # don't draw and save coordinates
+    leg <-legend("bottomright",
+                 legend = names(res_bd_list),
+                 fill = legendColours,
+                 xpd=T,
+                 border = NA,
+                 bty = "n",
+                 plot = FALSE)
+    # draw shifting to the right
+    legendxscaling <- 1.01
+    if(!is.null(bed_table2)) legendxscaling <- 1.13
+    legend(x = (leg$rect$left + leg$rect$w) * legendxscaling, y = leg$rect$top,
+           legend = names(res_bd_list),
+           fill = legendColours,
+           xpd=T,
+           border = NA,
+           bty = "n")
   }
   if(!is.null(fileout)) dev.off()
   

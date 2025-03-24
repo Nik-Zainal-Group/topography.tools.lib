@@ -103,3 +103,19 @@ test_that("test mergeWindowData", {
   expect_equal(res_windowdata,expect_windowdata_merged)
 })
 
+test_that("test getBedFromWindowData", {
+  
+  windowdata <- data.frame(row.names = c("2_1_500000","1_500001_1000000","1_1_500000"),
+                           counts = c(2,3,7),
+                           stringsAsFactors = F)
+  expect_windowdata_bed <- cbind(data.frame(row.names = rownames(windowdata),
+                                            chr = as.character(c(2,1,1)),
+                                            start = c(1,500001,1),
+                                            end = c(500000,1000000,500000),
+                                            stringsAsFactors = F),
+                                 windowdata)
+  
+  res_windowdata <- getBedFromWindowData(windowData = windowdata)
+  
+  expect_equal(res_windowdata,expect_windowdata_bed)
+})
