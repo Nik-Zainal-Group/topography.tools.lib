@@ -510,7 +510,7 @@ correlateBedRegions <- function(bed_table1,
       }
       
       if(resampleBedRegions2Flag){
-        if(is.null(precomputed_resampled_bed_regions1_list)){
+        if(is.null(precomputed_resampled_bed_regions2_list)){
           resampled_bed_table2 <- resampleBedRegions(bed_table = bed_table2,
                                                     genomev = genomev,
                                                     randomSeed = NULL,
