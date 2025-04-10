@@ -252,3 +252,47 @@ test_that("test multipleCorrelations", {
   expect_true(!is.null(res_obj$pvalues_refEntitiesWithCompEntities))
   
 })
+
+
+
+test_that("test multipleCorrelations with positions", {
+  bed_table1 <- data.frame(chr = c(1,1,1),
+                           start = c(100,220,400),
+                           end = c(150,350,420),
+                           id=paste0("x",c(1,2,3)),
+                           class=c("A","B","B"),
+                           stringsAsFactors = F)
+  pos_table1 <- data.frame(chr = c(1,1,1),
+                           position = c(240,320,410),
+                           id=paste0("y",c(1,2,3)),
+                           class=c("M","M","N"),
+                           stringsAsFactors = F)
+  pos_table2 <- data.frame(chr = c(1,1),
+                           position = c(120,200),
+                           id=paste0("y",c(1,2)),
+                           class=c("M","M"),
+                           stringsAsFactors = F)
+  samplingRegions <- data.frame(chr=c(1,1),
+                                start=c(1,2001),
+                                end=c(2000,4000),
+                                stringsAsFactors = F)
+  
+  expected_summaryOverlaps <- data.frame(row.names = "bed1",
+                                         pos1=2,
+                                         pos2=1,
+                                         total=3,
+                                         stringsAsFactors = F)
+  
+  res_obj <- multipleCorrelations(referenceEntities = bed_table1,
+                                  compareEntitiesList = list(pos1=pos_table1,pos2=pos_table2),
+                                  referenceEntitiesName = "bed1",
+                                  resampleCompareEntities = FALSE,
+                                  resampleReferenceEntitiesAllowOverlap = TRUE,
+                                  samplingRegions = samplingRegions,
+                                  genomev = NULL,
+                                  nsamples = 100)
+  
+  expect_equal(res_obj$counts_refEntitiesWithCompEntities,expected_summaryOverlaps)
+  expect_true(!is.null(res_obj$pvalues_refEntitiesWithCompEntities))
+  
+})

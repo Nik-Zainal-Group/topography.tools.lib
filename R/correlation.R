@@ -914,8 +914,8 @@ multipleCorrelations <- function(referenceEntities,
           
           # collect
           annotatedCompareEntitiesList[[CE]] <- annotatedPositions
-          counts_refEntitiesWithCompEntities[1,CE] <- summaryOverlaps[1,1]
-          counts_compEntitiesWithRefEntities[CE,1] <- summaryOverlaps[2,1]
+          counts_refEntitiesWithCompEntities[1,CE] <- summaryOverlaps[2,1]
+          counts_compEntitiesWithRefEntities[CE,1] <- summaryOverlaps[1,1]
           if(nsamples>0){
             expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
             pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
