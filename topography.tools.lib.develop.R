@@ -16,11 +16,15 @@ genetable_hg19 <- read.table("data/genes/Hg19_Gene_List_withIDs.bed",sep = "\t",
 genetable_hg38 <- read.table("data/genes/Hg38_Gene_List_withIDs.bed",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
 samplingRegions_hg19 <- read.table("data/sampling/mappableAndNotBlacklistedRegions_hg19.tsv",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
 samplingRegions_hg38 <- read.table("data/sampling/mappableAndNotBlacklistedRegions_hg38.tsv",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
+timing_regions_hg19 <- read.table("data/timing/timing_table_annotated_hg19_blacklistFiltered.tsv",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
+timing_regions_hg38 <- read.table("data/timing/timing_table_annotated_hg38_blacklistFiltered.tsv",sep = "\t",header = T,check.names = F,stringsAsFactors = F)
 
 usethis::use_data(genetable_hg19,
                   genetable_hg38,
                   samplingRegions_hg19,
                   samplingRegions_hg38,
+                  timing_regions_hg19,
+                  timing_regions_hg38,
                   internal = TRUE,
                   overwrite = TRUE)
 

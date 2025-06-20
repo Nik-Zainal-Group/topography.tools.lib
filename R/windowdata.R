@@ -13,7 +13,8 @@
 #' @export
 formatPositionDataToWindow <- function(positions,
                                        genomev="hg19",
-                                       windowSize=500000){
+                                       windowSize=500000,
+                                       verbose=FALSE){
   
   if(genomev=="hg19" & startsWith(as.character(positions$chr[1]),"chr")) positions$chr <- substr(positions$chr,4,5)
   if(genomev=="hg38" & !startsWith(as.character(positions$chr[1]),"chr")) positions$chr <- paste0("chr",positions$chr)
@@ -29,6 +30,7 @@ formatPositionDataToWindow <- function(positions,
                                stringsAsFactors = F)
   
   for(i in 1:nrow(positions)){
+    if(verbose & (i %% 10000 == 0)) message("[info formatPositionDataToWindow] running position ",i," of ",nrow(positions))
     # i <- 1
     p <- positions[i,"position"]
     wub <- ceiling(p/windowSize)*windowSize

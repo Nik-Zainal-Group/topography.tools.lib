@@ -4,7 +4,12 @@
 \alias{formatPositionDataToWindow}
 \title{Format positions data to window}
 \usage{
-formatPositionDataToWindow(positions, genomev = "hg19", windowSize = 5e+05)
+formatPositionDataToWindow(
+  positions,
+  genomev = "hg19",
+  windowSize = 5e+05,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{positions}{data frame with at least two required columns: chr, position}
