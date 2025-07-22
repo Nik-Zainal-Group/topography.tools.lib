@@ -615,7 +615,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
         if(verbose) message("[info intersectBed_nonOverlapping] No regions in chromosome ",chrom)
       }else if (nrow(chrom_regions1)==0){
         if(verbose) message("[info intersectBed_nonOverlapping] Only bed_table2 contains regions in chromosome ",chrom)
-        com_table <- rbind(com_table,
+        com_table <- dplyr::bind_rows(com_table,
                            data.frame(chr=chrom_regions2$chr,
                                       start=chrom_regions2$start,
                                       end=chrom_regions2$end,
@@ -625,7 +625,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                       stringsAsFactors = F))
       }else if (nrow(chrom_regions2)==0){
         if(verbose) message("[info intersectBed_nonOverlapping] Only bed_table1 contains regions in chromosome ",chrom)
-        com_table <- rbind(com_table,
+        com_table <- dplyr::bind_rows(com_table,
                            data.frame(chr=chrom_regions1$chr,
                                       start=chrom_regions1$start,
                                       end=chrom_regions1$end,
@@ -671,7 +671,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                      segment2=NA,
                                      stringsAsFactors = F)
               }
-              chrom_com_table <- rbind(chrom_com_table,newrow)
+              chrom_com_table <- dplyr::bind_rows(chrom_com_table,newrow)
             }else{
               sharedstart <- currentrow1$start
             }
@@ -740,8 +740,8 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                  segment1=sharedid1,
                                  segment2=sharedid2,
                                  stringsAsFactors = F)
-            chrom_com_table <- rbind(chrom_com_table,newrow)
-            if(!is.null(leftoverSegment)) chrom_com_table <- rbind(chrom_com_table,leftoverSegment)
+            chrom_com_table <- dplyr::bind_rows(chrom_com_table,newrow)
+            if(!is.null(leftoverSegment)) chrom_com_table <- dplyr::bind_rows(chrom_com_table,leftoverSegment)
           }else{
             # there is no overlapping between these two segments
             # add the one that comes first
@@ -755,7 +755,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                    segment1=NA,
                                    segment2=currentrow2$segmentid,
                                    stringsAsFactors = F)
-              chrom_com_table <- rbind(chrom_com_table,newrow)
+              chrom_com_table <- dplyr::bind_rows(chrom_com_table,newrow)
               iter2 <- iter2+1
               if(iter2<=nrow(chrom_regions2)) currentrow2 <- chrom_regions2[iter2,,drop=F]
             }else{
@@ -767,7 +767,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                    segment1=currentrow1$segmentid,
                                    segment2=NA,
                                    stringsAsFactors = F)
-              chrom_com_table <- rbind(chrom_com_table,newrow)
+              chrom_com_table <- dplyr::bind_rows(chrom_com_table,newrow)
               iter1 <- iter1+1
               if(iter1<=nrow(chrom_regions1)) currentrow1 <- chrom_regions1[iter1,,drop=F]
             }
@@ -786,7 +786,7 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                   segment1=rep(NA,length(iter2:nrow(chrom_regions2))),
                                   segment2=chrom_regions2$segmentid[iter2:nrow(chrom_regions2)],
                                   stringsAsFactors = F)
-            chrom_com_table <- rbind(chrom_com_table,newrows)
+            chrom_com_table <- dplyr::bind_rows(chrom_com_table,newrows)
           }else if(iter1<=nrow(chrom_regions1) & iter2>nrow(chrom_regions2)){
             newrows <- data.frame(chr=chrom_regions1$chr[iter1:nrow(chrom_regions1)],
                                   start=chrom_regions1$start[iter1:nrow(chrom_regions1)],
@@ -795,11 +795,11 @@ intersectBed_nonOverlapping <- function(bed_table1,
                                   segment1=chrom_regions1$segmentid[iter1:nrow(chrom_regions1)],
                                   segment2=rep(NA,length(iter1:nrow(chrom_regions1))),
                                   stringsAsFactors = F)
-            chrom_com_table <- rbind(chrom_com_table,newrows)
+            chrom_com_table <- dplyr::bind_rows(chrom_com_table,newrows)
           }
           
         }
-        com_table <- rbind(com_table,chrom_com_table)
+        com_table <- dplyr::bind_rows(com_table,chrom_com_table)
       }
     }
   }

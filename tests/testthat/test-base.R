@@ -18,6 +18,9 @@ test_that("test sortPositions", {
   
   positions_sorted <- sortPositions(positions)
   
+  rownames(expect_sorted) <- 1:nrow(expect_sorted)
+  rownames(positions_sorted) <- 1:nrow(positions_sorted)
+  
   expect_equal(positions_sorted,expect_sorted)
   
 })
@@ -29,6 +32,9 @@ test_that("test sortBed", {
   expect_sorted[3,c("start","end")] <- c(1,3)
   
   bed_table_sorted <- sortBed(bed_table)
+  
+  rownames(bed_table_sorted) <- 1:nrow(bed_table_sorted)
+  rownames(expect_sorted) <- 1:nrow(expect_sorted)
   
   expect_equal(bed_table_sorted,expect_sorted)
   
@@ -124,6 +130,9 @@ test_that("test getIMD", {
                                  stringsAsFactors = F))
   
   positions_IMD <- getIMD(positions)
+  
+  rownames(positions_IMD) <- 1:nrow(positions_IMD)
+  rownames(expect_IMD) <- 1:nrow(expect_IMD)
   
   expect_equal(positions_IMD,expect_IMD)
   

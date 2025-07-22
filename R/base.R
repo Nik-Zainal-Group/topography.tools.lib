@@ -71,7 +71,7 @@ sortPositions <- function(positions){
     # chrom <- chroms[1]
     tmpTable <- positions[positions$chr==chrom,,drop=F]
     tmpTable <- tmpTable[order(tmpTable$position),,drop=F]
-    sortedPositions <- rbind(sortedPositions,tmpTable)
+    sortedPositions <- dplyr::bind_rows(sortedPositions,tmpTable)
   }
   return(sortedPositions)
 }
@@ -111,7 +111,7 @@ sortBed <- function(bed_table){
       tmpTable$end[selinvert] <- selstarts
     } 
     tmpTable <- tmpTable[order(tmpTable$start),,drop=F]
-    sortedBed <- rbind(sortedBed,tmpTable)
+    sortedBed <- dplyr::bind_rows(sortedBed,tmpTable)
   }
   return(sortedBed)
 }
@@ -221,7 +221,7 @@ breakDownOverlappingBedRegions <- function(bed_table,
         # there is no overlap in this chromosome
         if(verbose) message("[info breakDownOverlappingBedRegions] no overlapping regions found in chromosome ",chrom)
         rownames(tmpTable) <- paste(tmpTable$chr,sprintf("%d",tmpTable$start),sprintf("%d",tmpTable$end),sep = "_")
-        finalTable <- rbind(finalTable,tmpTable[,returncolums,drop=F])
+        finalTable <- dplyr::bind_rows(finalTable,tmpTable[,returncolums,drop=F])
       }else{
         if(verbose) message("[info breakDownOverlappingBedRegions] breaking overlapping regions in chromosome ",chrom)
         # there are overlapping regions in this chromosome, so we need to break things down
@@ -249,7 +249,7 @@ breakDownOverlappingBedRegions <- function(bed_table,
         # they need to be added as additional regions
         bothstartandend <- allpositions[isstart & isend]
         if(length(bothstartandend)>0){
-          newTable <- rbind(newTable,data.frame(chr=rep(chrom,length(bothstartandend)),
+          newTable <- dplyr::bind_rows(newTable,data.frame(chr=rep(chrom,length(bothstartandend)),
                                                 start=bothstartandend,
                                                 end=bothstartandend,
                                                 stringsAsFactors = F))
@@ -353,7 +353,7 @@ breakDownOverlappingBedRegions <- function(bed_table,
             newTable$signal <- newTable$signalsum/newTable$noverlaps
           }
         }
-        finalTable <- rbind(finalTable,newTable[,returncolums,drop=F])
+        finalTable <- dplyr::bind_rows(finalTable,newTable[,returncolums,drop=F])
         
       }
     }
@@ -602,7 +602,7 @@ getIMD <- function(positions){
         chr_positions[1:(nrow(chr_positions)-1),"rightIMD"] <- IMD
         chr_positions[,"aveIMD"] <- apply(chr_positions[,c("leftIMD","rightIMD")],1,mean,na.rm=T)
       }
-      new_positions <- rbind(new_positions,chr_positions)
+      new_positions <- dplyr::bind_rows(new_positions,chr_positions)
     }
   }
   return(new_positions)
@@ -664,14 +664,14 @@ mergeAdjacentBedRegions <- function(bed_table,
     chrTable <- bed_table[bed_table$chr==chrom,requiredcolumns,drop=F]
     if(nrow(chrTable)==1){
       # only one row so nothing to merge with
-      newTable <- rbind(newTable,chrTable)
+      newTable <- dplyr::bind_rows(newTable,chrTable)
     }else{
       # sure more than one
       regdist <- chrTable$start[2:(nrow(chrTable))] - chrTable$end[1:(nrow(chrTable)-1)]
       mergepos <- which(regdist==1)
       if(length(mergepos)==0){
         # nothing to merge in this chrom
-        newTable <- rbind(newTable,chrTable)
+        newTable <- dplyr::bind_rows(newTable,chrTable)
       }else{
         # find where to merge and where to copy rows
         # group the adjacent windows in case of multiple consecutive merges
@@ -690,7 +690,7 @@ mergeAdjacentBedRegions <- function(bed_table,
         # check for rows to copy before the merges
         if(min(mergeGroups[["1"]])>1){
           # yes we copy from 1 to the first merge
-          newTable <- rbind(newTable,chrTable[1:(min(mergeGroups[["1"]])-1),,drop=F])
+          newTable <- dplyr::bind_rows(newTable,chrTable[1:(min(mergeGroups[["1"]])-1),,drop=F])
         }
         # now get to merge
         for (ni in 1:length(mergeGroups)){
@@ -716,7 +716,7 @@ mergeAdjacentBedRegions <- function(bed_table,
           }
           
           # add to new table
-          newTable <- rbind(newTable,newrow)
+          newTable <- dplyr::bind_rows(newTable,newrow)
           
           # now I should check if there are rows to copy after the mergeGroups or in between
           if(ni==length(mergeGroups)){
@@ -724,14 +724,14 @@ mergeAdjacentBedRegions <- function(bed_table,
             startingrow <- max(mergeGroups[[n]])+2
             if(startingrow<=nrow(chrTable)){
               # and we got something to add
-              newTable <- rbind(newTable,chrTable[startingrow:nrow(chrTable),,drop=F])
+              newTable <- dplyr::bind_rows(newTable,chrTable[startingrow:nrow(chrTable),,drop=F])
             }
           }else{
             # there is another merge later
             startingrow <- max(mergeGroups[[n]])+2
             endingrow <- min(mergeGroups[[names(mergeGroups)[ni+1]]])-1
             if(startingrow<=endingrow){
-              newTable <- rbind(newTable,chrTable[startingrow:endingrow,,drop=F])
+              newTable <- dplyr::bind_rows(newTable,chrTable[startingrow:endingrow,,drop=F])
             }
           }
         }
@@ -823,7 +823,7 @@ trimNfromBed <- function(bed_table,
     hasN <- grepl(pattern = "N",x = currentSeq,fixed = TRUE)
     if(!hasN){
       # just add row as it is
-      regions_table_final <- rbind(regions_table_final,bed_table[i,,drop=F])
+      regions_table_final <- dplyr::bind_rows(regions_table_final,bed_table[i,,drop=F])
     }else{
       if(verbose) message("[info trimNfromBed] Found N in row ",i,": splitting")
       # I need all the positions where N is, then use distance from next to find the regions
@@ -841,7 +841,7 @@ trimNfromBed <- function(bed_table,
                               end=positions[segmentsPos+1]-1,
                               stringsAsFactors = F)
         if(verbose) message("[info trimNfromBed] -> row ",i," split into ",nrow(newrows))
-        regions_table_final <- rbind(regions_table_final,newrows)
+        regions_table_final <- dplyr::bind_rows(regions_table_final,newrows)
       }else{
         if(verbose) message("[info trimNfromBed] -> row ",i," is 100% N")
       }
@@ -974,6 +974,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
   # select the data that is overlapping the region of interest
   regionBed <- NULL
   if(!is.null(bed_table)){
+    bed_table$chr <- as.character(bed_table$chr)
     regionBed <- bed_table[bed_table$chr==pchr,,drop=F]
     if(nrow(regionBed)>0){
       selection <- !(regionBed$start > pend | regionBed$end < pstart)
@@ -983,6 +984,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
   # same for bed_table2 if any
   regionBed2 <- NULL
   if(!is.null(bed_table2)){
+    bed_table2$chr <- as.character(bed_table2$chr)
     regionBed2 <- bed_table2[bed_table2$chr==pchr,,drop=F]
     if(nrow(regionBed2)>0){
       selection <- !(regionBed2$start > pend | regionBed2$end < pstart)
@@ -1013,7 +1015,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
                           end=pend,
                           signal=0,
                           stringsAsFactors = F)
-    regionBed <- rbind(regionBed,plotBed)
+    regionBed <- dplyr::bind_rows(regionBed,plotBed)
     regionBed$id <- 1:nrow(regionBed)
     res_bd <- breakDownOverlappingBedRegions(bed_table = regionBed,
                                              aggregateSignalMode = "sum",
@@ -1036,7 +1038,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
                           end=pend,
                           signal=0,
                           stringsAsFactors = F)
-    regionBed2 <- rbind(regionBed2,plotBed)
+    regionBed2 <- dplyr::bind_rows(regionBed2,plotBed)
     regionBed2$id <- 1:nrow(regionBed2)
     res_bd2 <- breakDownOverlappingBedRegions(bed_table = regionBed2,
                                               aggregateSignalMode = "sum",
@@ -1055,13 +1057,14 @@ plotBedSignalRegion <- function(bed_table=NULL,
   if(!is.null(regionBed_list)){
     res_bd_list <- list()
     for(tn in names(bed_table_list)){
+      regionBed_list[[tn]]$chr <- as.character(regionBed_list[[tn]]$chr)
       regionBed_list[[tn]] <- regionBed_list[[tn]][,c("chr", "start", "end", "signal"),drop=F]
       plotBed <- data.frame(chr=pchr,
                             start=pstart,
                             end=pend,
                             signal=0,
                             stringsAsFactors = F)
-      regionBed_list[[tn]] <- rbind(regionBed_list[[tn]],plotBed)
+      regionBed_list[[tn]] <- dplyr::bind_rows(regionBed_list[[tn]],plotBed)
       regionBed_list[[tn]]$id <- 1:nrow(regionBed_list[[tn]])
       res_bd_list[[tn]] <- breakDownOverlappingBedRegions(bed_table = regionBed_list[[tn]],
                                                           aggregateSignalMode = "sum",
@@ -1596,7 +1599,7 @@ extendBedRegionsWithNoOverlap <- function(bed_table,
             tmp_bed_table_chrom$end[i] <- tmp_bed_table_chrom$end[i]+extended
           }
         }
-        tmp_bed_table <- rbind(tmp_bed_table,tmp_bed_table_chrom)
+        tmp_bed_table <- dplyr::bind_rows(tmp_bed_table,tmp_bed_table_chrom)
       }
     }
   }else{
@@ -1677,7 +1680,7 @@ getIRD <- function(bed_table,
         chr_table[1:(nrow(chr_table)-1),"rightIRD"] <- IRD
         chr_table[,"aveIRD"] <- apply(chr_table[,c("leftIRD","rightIRD")],1,mean,na.rm=T)
       }
-      new_bed_table <- rbind(new_bed_table,chr_table)
+      new_bed_table <- dplyr::bind_rows(new_bed_table,chr_table)
     }
   }
   return(new_bed_table)
@@ -1798,9 +1801,9 @@ bedpeBreakpointsToPositions <- function(sv_bedpe,
       if(!is.null(copycolumns)){
         tmpdfi <- cbind(tmpdfi,sv_bedpe[i,copycolumns,drop=F])
       }
-      tmpdf <- rbind(tmpdf,tmpdfi)
+      tmpdf <- dplyr::bind_rows(tmpdf,tmpdfi)
     }
-    mutations <- rbind(mutations,tmpdf)
+    mutations <- dplyr::bind_rows(mutations,tmpdf)
   }
   mutations <- sortPositions(positions = mutations)
   return(mutations)

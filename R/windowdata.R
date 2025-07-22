@@ -49,7 +49,7 @@ formatPositionDataToWindow <- function(positions,
         newrow <- data.frame(matrix(0,nrow = 1,ncol = 1,
                                     dimnames = list(id,"counts")),
                              stringsAsFactors = F)
-        sigCountsTable <- rbind(sigCountsTable,newrow)
+        sigCountsTable <- dplyr::bind_rows(sigCountsTable,newrow)
       }
       sigCountsTable[id,"counts"] <- sigCountsTable[id,"counts"] + 1
     }
@@ -167,8 +167,8 @@ formatBedDataToWindow <- function(bed_table,
       }
       
       # add the new row
-      finalTable <- rbind(finalTable,
-                          newrow)
+      finalTable <- dplyr::bind_rows(finalTable,
+                                     newrow)
     }
   }
   return(finalTable)
@@ -259,11 +259,11 @@ mergeWindowData <- function(windowData1,
   resultWindowData <- windowData1
   # let's start by adding the new rows to windowData1 (if any)
   if(length(windowData2_private_rownames)>0){
-    resultWindowData <- rbind(resultWindowData,as.data.frame(matrix(missingValueFill,
-                                                                    nrow = length(windowData2_private_rownames),
-                                                                    ncol = ncol(resultWindowData),
-                                                                    dimnames = list(windowData2_private_rownames,colnames(resultWindowData))),
-                                                             stringsAsFactors = F))
+    resultWindowData <- dplyr::bind_rows(resultWindowData,as.data.frame(matrix(missingValueFill,
+                                                                               nrow = length(windowData2_private_rownames),
+                                                                               ncol = ncol(resultWindowData),
+                                                                               dimnames = list(windowData2_private_rownames,colnames(resultWindowData))),
+                                                                        stringsAsFactors = F))
   }
   # now add the new columns
   resultWindowData[,windowData2_private_colnames] <- missingValueFill

@@ -110,7 +110,7 @@ resamplePositions <- function(positions,
       message("[info resamplePositions] processing row ",i," of ",nrow(positions))
     }
     newposition <- randomPositionInRegions(samplingRegions = samplingRegions[samplingRegions$chr==positions$chr[i],,drop=F])
-    resampled_positions <- rbind(resampled_positions,newposition)
+    resampled_positions <- dplyr::bind_rows(resampled_positions,newposition)
   }
   
   # add additional columns back
@@ -253,7 +253,7 @@ resampleBedRegions <- function(bed_table,
       resampled_successfully[i] <- TRUE
     }
     
-    resampled_bed_table <- rbind(resampled_bed_table,newrow)
+    resampled_bed_table <- dplyr::bind_rows(resampled_bed_table,newrow)
     
     # we now need to remove the new row from the samplingRegions
     if(!allowRegionsOverlap & !is.null(newrow)){
@@ -280,7 +280,7 @@ resampleBedRegions <- function(bed_table,
       if(nrow(intersectTable)>0){
         samplingRegions_copy$id <- NULL
         newsize <- intersectTable$end-intersectTable$start+1
-        samplingRegions_copy <- rbind(samplingRegions_copy,
+        samplingRegions_copy <- dplyr::bind_rows(samplingRegions_copy,
                                       data.frame(chr=intersectTable$chr,
                                                  start=intersectTable$start,
                                                  end=intersectTable$end,
@@ -360,6 +360,10 @@ resampleSV <- function(sv_bedpe,
     samplingRegions$id <- 1:nrow(samplingRegions)
   }
   
+  # convert to char just in case
+  sv_bedpe$chrom1 <- as.character(sv_bedpe$chrom1)
+  sv_bedpe$chrom2 <- as.character(sv_bedpe$chrom2)
+  
   # now resample each sv
   resampled_bedpe <- NULL
   for(i in 1:nrow(sv_bedpe)){
@@ -436,7 +440,7 @@ resampleSV <- function(sv_bedpe,
           newrow <- cbind(newrow,sv_bedpe[i,colstocopy,drop=F])
         }
       }
-      resampled_bedpe <- rbind(resampled_bedpe,newrow)
+      resampled_bedpe <- dplyr::bind_rows(resampled_bedpe,newrow)
     }else{
       message("[warning resampleSV] skipping row ",i," of ",nrow(sv_bedpe),". Too many failed resampling attempts (max=",maxattempts,")")
     }
