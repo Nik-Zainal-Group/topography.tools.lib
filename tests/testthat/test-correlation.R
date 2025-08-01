@@ -17,21 +17,22 @@ test_that("test correlatePositionsWithBedRegions with classes", {
                                 start=c(1,5001),
                                 end=c(5000,10000),
                                 stringsAsFactors = F)
-  
+
   expected_summaryOverlaps <- data.frame(row.names = c("positions","regions"),
                                   noverlap=c(7,4),
                                   ntotal=c(8,4),
                                   stringsAsFactors = F)
-  
+
   res_obj <- correlatePositionsWithBedRegions(positions = positions,
                                               bed_table = bed_table,
                                               samplingRegions = samplingRegions,
                                               genomev = NULL,
                                               nsamples = 100)
-  
+
   expect_equal(res_obj$summaryOverlaps,expected_summaryOverlaps)
   expect_true(all(res_obj$pvalue_positionsInRegionClasses[,"noMatch"]>0.5) & res_obj$pvalue_positionsInRegionClasses["B","g2"]<0.5 & res_obj$pvalue_positionsInRegionClasses["A","g1"]<0.5)
-  
+  expect_true(all(res_obj$pvalue_positionsInRegionClasses_Wilcoxon[,"noMatch"]>0.5) & res_obj$pvalue_positionsInRegionClasses_Wilcoxon["B","g2"]<0.5 & res_obj$pvalue_positionsInRegionClasses_Wilcoxon["A","g1"]<0.5)
+
 })
 
 test_that("test correlatePositionsWithBedRegions with classes and reuse resampling", {
@@ -50,7 +51,7 @@ test_that("test correlatePositionsWithBedRegions with classes and reuse resampli
                                 start=c(1,5001),
                                 end=c(5000,10000),
                                 stringsAsFactors = F)
-  
+
   res_obj <- correlatePositionsWithBedRegions(positions = positions,
                                               bed_table = bed_table,
                                               samplingRegions = samplingRegions,
@@ -65,7 +66,7 @@ test_that("test correlatePositionsWithBedRegions with classes and reuse resampli
                                                resampled_bed_regions_list = res_obj$resampled_bed_regions_list,
                                                genomev = NULL,
                                                nsamples = 10)
-  
+
   expect_equal(res_obj$sampled_PostionsInAnyRegion,res_obj2$sampled_PostionsInAnyRegion)
 
 })
@@ -87,7 +88,7 @@ test_that("test correlatePositionsWithBedRegions with random seed", {
                                 start=c(1,5001),
                                 end=c(5000,10000),
                                 stringsAsFactors = F)
-  
+
   res_obj <- correlatePositionsWithBedRegions(positions = positions,
                                               bed_table = bed_table,
                                               samplingRegions = samplingRegions,
@@ -98,9 +99,9 @@ test_that("test correlatePositionsWithBedRegions with random seed", {
                                                samplingRegions = samplingRegions,
                                                genomev = NULL,randomSeed = 1,
                                                nsamples = 10)
-  
+
   expect_equal(res_obj$sampled_PostionsInAnyRegion,res_obj2$sampled_PostionsInAnyRegion)
-  
+
 })
 
 test_that("test correlateBedRegions without classes", {
@@ -118,21 +119,22 @@ test_that("test correlateBedRegions without classes", {
                                 start=c(1,3001),
                                 end=c(3000,6000),
                                 stringsAsFactors = F)
-  
+
   expected_summaryOverlaps <- data.frame(row.names = c("bed_table1","bed_table2"),
                                          noverlap=c(2,3),
                                          ntotal=c(3,4),
                                          stringsAsFactors = F)
-  
+
   res_obj <- correlateBedRegions(bed_table1 = bed_table1,
                                  bed_table2 = bed_table2,
                                  samplingRegions = samplingRegions,
                                  genomev = NULL,
                                  nsamples = 100)
-  
+
   expect_equal(res_obj$summaryOverlaps,expected_summaryOverlaps)
   expect_true(res_obj$pvalue_Regions1overlappingAnyRegion2<0.5 & res_obj$pvalue_Regions2overlappingAnyRegion1<0.5)
-  
+  expect_true(res_obj$pvalue_Regions1overlappingAnyRegion2_Wilcoxon<0.5 & res_obj$pvalue_Regions2overlappingAnyRegion1_Wilcoxon<0.5)
+
 })
 
 test_that("test correlateBedRegions with classes", {
@@ -152,21 +154,21 @@ test_that("test correlateBedRegions with classes", {
                                 start=c(1,5001),
                                 end=c(5000,10000),
                                 stringsAsFactors = F)
-  
+
   expected_summaryOverlaps <- data.frame(row.names = c("bed_table1","bed_table2"),
                                          noverlap=c(2,3),
                                          ntotal=c(3,4),
                                          stringsAsFactors = F)
-  
+
   res_obj <- correlateBedRegions(bed_table1 = bed_table1,
                                  bed_table2 = bed_table2,
                                  samplingRegions = samplingRegions,
                                  genomev = NULL,
                                  nsamples = 100)
-  
+
   expect_equal(res_obj$summaryOverlaps,expected_summaryOverlaps)
   expect_true(all(res_obj$pvalue_regions1overlappingRegion2classes[,"noMatch"]>0.5) & res_obj$pvalue_regions1overlappingRegion2classes["B","M"]<0.5 & res_obj$pvalue_regions1overlappingRegion2classes["B","N"]<0.5)
-  
+
 })
 
 test_that("test correlateBedRegions with classes and reuse resampling", {
@@ -186,7 +188,7 @@ test_that("test correlateBedRegions with classes and reuse resampling", {
                                 start=c(1,5001),
                                 end=c(5000,10000),
                                 stringsAsFactors = F)
-  
+
   res_obj <- correlateBedRegions(bed_table1 = bed_table1,
                                  bed_table2 = bed_table2,
                                  samplingRegions = samplingRegions,
@@ -201,7 +203,7 @@ test_that("test correlateBedRegions with classes and reuse resampling", {
                                   resampled_bed_regions2_list = res_obj$resampled_bed_regions2_list,
                                   genomev = NULL,
                                   nsamples = 10)
-  
+
   expect_equal(res_obj$sampled_Regions1overlappingAnyRegion2,res_obj2$sampled_Regions1overlappingAnyRegion2)
 
 })
@@ -231,14 +233,14 @@ test_that("test multipleCorrelations", {
                                 start=c(1,2001),
                                 end=c(2000,4000),
                                 stringsAsFactors = F)
-  
+
   expected_summaryOverlaps <- data.frame(row.names = "bed1",
                                          bed1=3,
                                          bed2=2,
                                          bed3=2,
                                          total=3,
                                          stringsAsFactors = F)
-  
+
   res_obj <- multipleCorrelations(referenceEntities = bed_table1,
                                   compareEntitiesList = list(bed1=bed_table1,bed2=bed_table2,bed3=bed_table3),
                                   referenceEntitiesName = "bed1",
@@ -247,10 +249,10 @@ test_that("test multipleCorrelations", {
                                   samplingRegions = samplingRegions,
                                   genomev = NULL,
                                   nsamples = 100)
-  
+
   expect_equal(res_obj$counts_refEntitiesWithCompEntities,expected_summaryOverlaps)
   expect_true(!is.null(res_obj$pvalues_refEntitiesWithCompEntities))
-  
+
 })
 
 
@@ -276,13 +278,13 @@ test_that("test multipleCorrelations with positions", {
                                 start=c(1,2001),
                                 end=c(2000,4000),
                                 stringsAsFactors = F)
-  
+
   expected_summaryOverlaps <- data.frame(row.names = "bed1",
                                          pos1=2,
                                          pos2=1,
                                          total=3,
                                          stringsAsFactors = F)
-  
+
   res_obj <- multipleCorrelations(referenceEntities = bed_table1,
                                   compareEntitiesList = list(pos1=pos_table1,pos2=pos_table2),
                                   referenceEntitiesName = "bed1",
@@ -291,8 +293,8 @@ test_that("test multipleCorrelations with positions", {
                                   samplingRegions = samplingRegions,
                                   genomev = NULL,
                                   nsamples = 100)
-  
+
   expect_equal(res_obj$counts_refEntitiesWithCompEntities,expected_summaryOverlaps)
   expect_true(!is.null(res_obj$pvalues_refEntitiesWithCompEntities))
-  
+
 })

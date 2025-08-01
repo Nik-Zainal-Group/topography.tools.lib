@@ -226,15 +226,45 @@ correlatePositionsWithBedRegions <- function(positions,
     returnObj$sampled_PostionsInAnyRegion <- sampled_PostionsInAnyRegion
     returnObj$sampled_RegionsAtAnyPosition <- sampled_RegionsAtAnyPosition
     
+    wilcoxon_alt <- NULL
     if(altHypothesis=="greaterthan"){
       returnObj$pvalue_PostionsInAnyRegion <- sum(totalPostionsInAnyRegion<=sampled_PostionsInAnyRegion)/nsamples
       returnObj$pvalue_RegionsAtAnyPosition <- sum(totalRegionsAtAnyPosition<=sampled_RegionsAtAnyPosition)/nsamples
+      wilcoxon_alt <- "less"
     }else if(altHypothesis=="lowerthan"){
       returnObj$pvalue_PostionsInAnyRegion <- sum(totalPostionsInAnyRegion>=sampled_PostionsInAnyRegion)/nsamples
       returnObj$pvalue_RegionsAtAnyPosition <- sum(totalRegionsAtAnyPosition>=sampled_RegionsAtAnyPosition)/nsamples
+      wilcoxon_alt <- "greater"
     }else{
       message("[warning correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
     }
+    
+    # Run the Wilcoxon test
+    if(!is.null(wilcoxon_alt)){
+      if(all(sampled_PostionsInAnyRegion==totalPostionsInAnyRegion)){
+        returnObj$pvalue_PostionsInAnyRegion_Wilcoxon <- 1
+      }else{
+        # test_res <- wilcox.test(x = sampled_PostionsInAnyRegion,
+        #                         mu = totalPostionsInAnyRegion,
+        #                         alternative = wilcoxon_alt)
+        test_res <- exactRankTests::wilcox.exact(x = sampled_PostionsInAnyRegion,
+                                                 mu = totalPostionsInAnyRegion,
+                                                 alternative = wilcoxon_alt)
+        returnObj$pvalue_PostionsInAnyRegion_Wilcoxon <- test_res$p.value
+      }
+      if(all(sampled_RegionsAtAnyPosition==totalRegionsAtAnyPosition)){
+        returnObj$pvalue_RegionsAtAnyPosition_Wilcoxon <- 1
+      }else{
+        # test_res <- wilcox.test(x = sampled_RegionsAtAnyPosition,
+        #                         mu = totalRegionsAtAnyPosition,
+        #                         alternative = wilcoxon_alt)
+        test_res <- exactRankTests::wilcox.exact(x = sampled_RegionsAtAnyPosition,
+                                                 mu = totalRegionsAtAnyPosition,
+                                                 alternative = wilcoxon_alt)
+        returnObj$pvalue_RegionsAtAnyPosition_Wilcoxon <- test_res$p.value
+      }
+    }
+
     
     # calculate all p-values the easy way
     returnObj$sampled_positionsInRegionClasses <- sampled_positionsInRegionClasses
@@ -244,6 +274,11 @@ correlatePositionsWithBedRegions <- function(positions,
                                               dimnames = list(rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses)))
     pvalue_regionsAtPositionClasses <- matrix(nrow = nrow(countsTable_regionsAtPositionClasses),ncol = ncol(countsTable_regionsAtPositionClasses),
                                               dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses)))
+    pvalue_positionsInRegionClasses_Wilcoxon <- matrix(nrow = nrow(countsTable_positionsInRegionClasses),ncol = ncol(countsTable_positionsInRegionClasses),
+                                                       dimnames = list(rownames(countsTable_positionsInRegionClasses),colnames(countsTable_positionsInRegionClasses)))
+    pvalue_regionsAtPositionClasses_Wilcoxon <- matrix(nrow = nrow(countsTable_regionsAtPositionClasses),ncol = ncol(countsTable_regionsAtPositionClasses),
+                                                       dimnames = list(rownames(countsTable_regionsAtPositionClasses),colnames(countsTable_regionsAtPositionClasses)))
+    
     if(altHypothesis=="greaterthan"){
       for(i in 1:nrow(countsTable_positionsInRegionClasses)){
         # i <- 1
@@ -280,6 +315,46 @@ correlatePositionsWithBedRegions <- function(positions,
       returnObj$pvalue_regionsAtPositionClasses <- pvalue_regionsAtPositionClasses
     }else{
       message("[warning correlatePositionsWithBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+    }
+    
+    # Run the Wilcoxon test
+    if(!is.null(wilcoxon_alt)){
+      for(i in 1:nrow(countsTable_positionsInRegionClasses)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_positionsInRegionClasses)){
+          # j <- 1
+          if(all(sampled_positionsInRegionClasses[i,j,]==countsTable_positionsInRegionClasses[i,j])){
+            pvalue_positionsInRegionClasses_Wilcoxon[i,j] <- 1
+          }else{
+            # test_res <- wilcox.test(x = sampled_positionsInRegionClasses[i,j,],
+            #                         mu = countsTable_positionsInRegionClasses[i,j],
+            #                         alternative = wilcoxon_alt)
+            test_res <- exactRankTests::wilcox.exact(x = sampled_positionsInRegionClasses[i,j,],
+                                                     mu = countsTable_positionsInRegionClasses[i,j],
+                                                     alternative = wilcoxon_alt)
+            pvalue_positionsInRegionClasses_Wilcoxon[i,j] <- test_res$p.value
+          }
+        }
+      }
+      for(i in 1:nrow(countsTable_regionsAtPositionClasses)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regionsAtPositionClasses)){
+          # j <- 1
+          if(all(sampled_regionsAtPositionClasses[i,j,]==countsTable_regionsAtPositionClasses[i,j])){
+            pvalue_regionsAtPositionClasses_Wilcoxon[i,j] <- 1
+          }else{
+            # test_res <- wilcox.test(x = sampled_regionsAtPositionClasses[i,j,],
+            #                         mu = countsTable_regionsAtPositionClasses[i,j],
+            #                         alternative = wilcoxon_alt)
+            test_res <- exactRankTests::wilcox.exact(x = sampled_regionsAtPositionClasses[i,j,],
+                                                     mu = countsTable_regionsAtPositionClasses[i,j],
+                                                     alternative = wilcoxon_alt)
+            pvalue_regionsAtPositionClasses_Wilcoxon[i,j] <- test_res$p.value
+          }
+        }
+      }
+      returnObj$pvalue_positionsInRegionClasses_Wilcoxon <- pvalue_positionsInRegionClasses_Wilcoxon
+      returnObj$pvalue_regionsAtPositionClasses_Wilcoxon <- pvalue_regionsAtPositionClasses_Wilcoxon
     }
     
     # calculate also the mean/median/sd of counts
@@ -565,14 +640,37 @@ correlateBedRegions <- function(bed_table1,
     returnObj$sampled_Regions1overlappingAnyRegion2 <- sampled_Regions1overlappingAnyRegion2
     returnObj$sampled_Regions2overlappingAnyRegion1 <- sampled_Regions2overlappingAnyRegion1
     
+    wilcoxon_alt <- NULL
     if(altHypothesis=="greaterthan"){
       returnObj$pvalue_Regions1overlappingAnyRegion2 <- sum(totalRegions1overlappingAnyRegion2<=sampled_Regions1overlappingAnyRegion2)/nsamples
       returnObj$pvalue_Regions2overlappingAnyRegion1 <- sum(totalRegions2overlappingAnyRegion1<=sampled_Regions2overlappingAnyRegion1)/nsamples
+      wilcoxon_alt <- "less"
     }else if(altHypothesis=="lowerthan"){
       returnObj$pvalue_Regions1overlappingAnyRegion2 <- sum(totalRegions1overlappingAnyRegion2>=sampled_Regions1overlappingAnyRegion2)/nsamples
       returnObj$pvalue_Regions2overlappingAnyRegion1 <- sum(totalRegions2overlappingAnyRegion1>=sampled_Regions2overlappingAnyRegion1)/nsamples
+      wilcoxon_alt <- "greater"
     }else{
       message("[warning correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+    }
+    
+    # Run the Wilcoxon test
+    if(!is.null(wilcoxon_alt)){
+      if(all(sampled_Regions1overlappingAnyRegion2==totalRegions1overlappingAnyRegion2)){
+        returnObj$pvalue_Regions1overlappingAnyRegion2_Wilcoxon <- 1
+      }else{
+        test_res <- exactRankTests::wilcox.exact(x = sampled_Regions1overlappingAnyRegion2,
+                                                 mu = totalRegions1overlappingAnyRegion2,
+                                                 alternative = wilcoxon_alt)
+        returnObj$pvalue_Regions1overlappingAnyRegion2_Wilcoxon <- test_res$p.value
+      }
+      if(all(sampled_Regions2overlappingAnyRegion1==totalRegions2overlappingAnyRegion1)){
+        returnObj$pvalue_Regions2overlappingAnyRegion1_Wilcoxon <- 1
+      }else{
+        test_res <- exactRankTests::wilcox.exact(x = sampled_Regions2overlappingAnyRegion1,
+                                                 mu = totalRegions2overlappingAnyRegion1,
+                                                 alternative = wilcoxon_alt)
+        returnObj$pvalue_Regions2overlappingAnyRegion1_Wilcoxon <- test_res$p.value
+      }
     }
     
     # calculate all p-values the easy way
@@ -583,6 +681,11 @@ correlateBedRegions <- function(bed_table1,
                                                        dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes)))
     pvalue_regions2overlappingRegion1classes <- matrix(nrow = nrow(countsTable_regions2overlappingRegion1classes),ncol = ncol(countsTable_regions2overlappingRegion1classes),
                                                        dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes)))
+    pvalue_regions1overlappingRegion2classes_Wilcoxon <- matrix(nrow = nrow(countsTable_regions1overlappingRegion2classes),ncol = ncol(countsTable_regions1overlappingRegion2classes),
+                                                                dimnames = list(rownames(countsTable_regions1overlappingRegion2classes),colnames(countsTable_regions1overlappingRegion2classes)))
+    pvalue_regions2overlappingRegion1classes_Wilcoxon <- matrix(nrow = nrow(countsTable_regions2overlappingRegion1classes),ncol = ncol(countsTable_regions2overlappingRegion1classes),
+                                                                dimnames = list(rownames(countsTable_regions2overlappingRegion1classes),colnames(countsTable_regions2overlappingRegion1classes)))
+    
     if(altHypothesis=="greaterthan"){
       for(i in 1:nrow(countsTable_regions1overlappingRegion2classes)){
         # i <- 1
@@ -619,6 +722,40 @@ correlateBedRegions <- function(bed_table1,
       returnObj$pvalue_regions2overlappingRegion1classes <- pvalue_regions2overlappingRegion1classes
     }else{
       message("[warning correlateBedRegions] unknown alternative hypothesis ",altHypothesis,", please use greaterthan or lowerthan.")
+    }
+    
+    # Run the Wilcoxon test
+    if(!is.null(wilcoxon_alt)){
+      for(i in 1:nrow(countsTable_regions1overlappingRegion2classes)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regions1overlappingRegion2classes)){
+          # j <- 1
+          if(all(sampled_regions1overlappingRegion2classes[i,j,]==countsTable_regions1overlappingRegion2classes[i,j])){
+            pvalue_regions1overlappingRegion2classes_Wilcoxon[i,j] <- 1
+          }else{
+            test_res <- exactRankTests::wilcox.exact(x = sampled_regions1overlappingRegion2classes[i,j,],
+                                                     mu = countsTable_regions1overlappingRegion2classes[i,j],
+                                                     alternative = wilcoxon_alt)
+            pvalue_regions1overlappingRegion2classes_Wilcoxon[i,j] <- test_res$p.value
+          }
+        }
+      }
+      for(i in 1:nrow(countsTable_regions2overlappingRegion1classes)){
+        # i <- 1
+        for(j in 1:ncol(countsTable_regions2overlappingRegion1classes)){
+          # j <- 1
+          if(all(sampled_regions2overlappingRegion1classes[i,j,]==countsTable_regions2overlappingRegion1classes[i,j])){
+            pvalue_regions2overlappingRegion1classes_Wilcoxon[i,j] <- 1
+          }else{
+            test_res <- exactRankTests::wilcox.exact(x = sampled_regions2overlappingRegion1classes[i,j,],
+                                                     mu = countsTable_regions2overlappingRegion1classes[i,j],
+                                                     alternative = wilcoxon_alt)
+            pvalue_regions2overlappingRegion1classes_Wilcoxon[i,j] <- test_res$p.value
+          }
+        }
+      }
+      returnObj$pvalue_regions1overlappingRegion2classes_Wilcoxon <- pvalue_regions1overlappingRegion2classes_Wilcoxon
+      returnObj$pvalue_regions2overlappingRegion1classes_Wilcoxon <- pvalue_regions2overlappingRegion1classes_Wilcoxon
     }
     
     # calculate also the mean/median/sd of counts
@@ -727,7 +864,7 @@ multipleCorrelations <- function(referenceEntities,
     message("[error multipleCorrelations] referenceEntities type is ",etype,". ",
             "Please make sure it is either a positions table, with columns chr and position, ",
             "or a bed table, with columns chr, start, end.")
-    return("NULL")
+    return(NULL)
   }
   
   # if we are resampling, let's do it once only for the reference
@@ -781,6 +918,9 @@ multipleCorrelations <- function(referenceEntities,
   pvalues_refEntitiesWithCompEntities <- as.data.frame(matrix(NA,nrow = 1,ncol = length(compareEntitiesList),
                                                               dimnames = list(referenceEntitiesName,names(compareEntitiesList))),
                                                        stringsAsFactors = F)
+  pvalues_refEntitiesWithCompEntities_Wilcoxon <- as.data.frame(matrix(NA,nrow = 1,ncol = length(compareEntitiesList),
+                                                                       dimnames = list(referenceEntitiesName,names(compareEntitiesList))),
+                                                                stringsAsFactors = F)
   counts_compEntitiesWithRefEntities <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList)*2)),
                                                              nrow = length(compareEntitiesList),ncol = 2,
                                                              dimnames = list(names(compareEntitiesList),c(referenceEntitiesName,"total"))),
@@ -793,6 +933,10 @@ multipleCorrelations <- function(referenceEntities,
                                                               nrow = length(compareEntitiesList),ncol = 1,
                                                               dimnames = list(names(compareEntitiesList),c(referenceEntitiesName))),
                                                        stringsAsFactors = F)
+  pvalues_compEntitiesWithRefEntities_Wilcoxon <- as.data.frame(matrix(c(rep(NA,length(compareEntitiesList))),
+                                                                       nrow = length(compareEntitiesList),ncol = 1,
+                                                                       dimnames = list(names(compareEntitiesList),c(referenceEntitiesName))),
+                                                                stringsAsFactors = F)
   cei <- 0
   for(CE in names(compareEntitiesList)){
     # CE <- names(compareEntitiesList)[1]
@@ -847,6 +991,13 @@ multipleCorrelations <- function(referenceEntities,
                                           pvalueRefEntities=pvalue2,
                                           pvalueCompEntities=pvalue1,
                                           stringsAsFactors = F)
+          pvalue1_Wilcoxon <- res_corr_pos_extend$pvalue_RegionsAtAnyPosition_Wilcoxon
+          pvalue2_Wilcoxon <- res_corr_pos_extend$pvalue_PostionsInAnyRegion_Wilcoxon
+          significanceTable_Wilcoxon <- data.frame(nsamples=res_corr_pos_extend$nsamples,
+                                                   pvalueRefEntities=pvalue2_Wilcoxon,
+                                                   pvalueCompEntities=pvalue1_Wilcoxon,
+                                                   stringsAsFactors = F)
+          
           # - expected overlaps
           expectedOverlaps <- data.frame(nsamples=res_corr_pos_extend$nsamples,
                                          expectedRefEntities=res_corr_pos_extend$mean_PostionsInAnyRegion,
@@ -861,8 +1012,10 @@ multipleCorrelations <- function(referenceEntities,
         if(nsamples>0){
           expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
           pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
+          pvalues_refEntitiesWithCompEntities_Wilcoxon[1,CE] <- significanceTable_Wilcoxon[1,2]
           expected_compEntitiesWithRefEntities[CE,1] <- expectedOverlaps[1,3]
           pvalues_compEntitiesWithRefEntities[CE,1] <- significanceTable[1,3]
+          pvalues_compEntitiesWithRefEntities_Wilcoxon[CE,1] <- significanceTable_Wilcoxon[1,3]
           counts_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
           expected_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
         }
@@ -905,6 +1058,13 @@ multipleCorrelations <- function(referenceEntities,
                                             pvalueRefEntitiesWithPositions=pvalue1,
                                             pvaluePositionsInAnyHotspot=pvalue2,
                                             stringsAsFactors = F)
+            pvalue1_Wilcoxon <- res_corr_pos_extend$pvalue_RegionsAtAnyPosition_Wilcoxon
+            pvalue2_Wilcoxon <- res_corr_pos_extend$pvalue_PostionsInAnyRegion_Wilcoxon
+            significanceTable_Wilcoxon <- data.frame(nsamples=res_corr_pos_extend$nsamples,
+                                                     pvalueRefEntitiesWithPositions=pvalue1_Wilcoxon,
+                                                     pvaluePositionsInAnyHotspot=pvalue2_Wilcoxon,
+                                                     stringsAsFactors = F)
+            
             # - expected overlaps
             expectedOverlaps <- data.frame(nsamples=res_corr_pos_extend$nsamples,
                                            expectedRefEntitiesWithPositions=res_corr_pos_extend$mean_RegionsAtAnyPosition,
@@ -919,8 +1079,10 @@ multipleCorrelations <- function(referenceEntities,
           if(nsamples>0){
             expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
             pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
+            pvalues_refEntitiesWithCompEntities_Wilcoxon[1,CE] <- significanceTable_Wilcoxon[1,2]
             expected_compEntitiesWithRefEntities[CE,1] <- expectedOverlaps[1,3]
             pvalues_compEntitiesWithRefEntities[CE,1] <- significanceTable[1,3]
+            pvalues_compEntitiesWithRefEntities_Wilcoxon[CE,1] <- significanceTable_Wilcoxon[1,3]
             counts_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
             expected_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
           }
@@ -963,6 +1125,13 @@ multipleCorrelations <- function(referenceEntities,
                                             pvalueOverlappingRefEntities=pvalue1,
                                             pvalueOverlappingRegions=pvalue2,
                                             stringsAsFactors = F)
+            pvalue1_Wilcoxon <- res_corr_extend$pvalue_Regions1overlappingAnyRegion2_Wilcoxon
+            pvalue2_Wilcoxon <- res_corr_extend$pvalue_Regions2overlappingAnyRegion1_Wilcoxon
+            significanceTable_Wilcoxon <- data.frame(nsamples=res_corr_extend$nsamples,
+                                                     pvalueOverlappingRefEntities=pvalue1_Wilcoxon,
+                                                     pvalueOverlappingRegions=pvalue2_Wilcoxon,
+                                                     stringsAsFactors = F)
+            
             # - expected overlaps
             expectedOverlaps <- data.frame(nsamples=res_corr_extend$nsamples,
                                            expectedOverlappingRefEntities=res_corr_extend$mean_Regions1overlappingAnyRegion2,
@@ -977,8 +1146,10 @@ multipleCorrelations <- function(referenceEntities,
           if(nsamples>0){
             expected_refEntitiesWithCompEntities[1,CE] <- expectedOverlaps[1,2]
             pvalues_refEntitiesWithCompEntities[1,CE] <- significanceTable[1,2]
+            pvalues_refEntitiesWithCompEntities_Wilcoxon[1,CE] <- significanceTable_Wilcoxon[1,2]
             expected_compEntitiesWithRefEntities[CE,1] <- expectedOverlaps[1,3]
             pvalues_compEntitiesWithRefEntities[CE,1] <- significanceTable[1,3]
+            pvalues_compEntitiesWithRefEntities_Wilcoxon[CE,1] <- significanceTable_Wilcoxon[1,3]
             counts_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
             expected_compEntitiesWithRefEntities[CE,2] <- nrow(currente)
           }
@@ -999,8 +1170,10 @@ multipleCorrelations <- function(referenceEntities,
   if(nsamples>0){
     returnObj$expected_refEntitiesWithCompEntities <- expected_refEntitiesWithCompEntities
     returnObj$pvalues_refEntitiesWithCompEntities <- pvalues_refEntitiesWithCompEntities
+    returnObj$pvalues_refEntitiesWithCompEntities_Wilcoxon <- pvalues_refEntitiesWithCompEntities_Wilcoxon
     returnObj$expected_compEntitiesWithRefEntities <- expected_compEntitiesWithRefEntities
     returnObj$pvalues_compEntitiesWithRefEntities <- pvalues_compEntitiesWithRefEntities
+    returnObj$pvalues_compEntitiesWithRefEntities_Wilcoxon <- pvalues_compEntitiesWithRefEntities_Wilcoxon
   }
   return(returnObj)
 }
