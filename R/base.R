@@ -83,12 +83,22 @@ sortPositions <- function(positions){
 #' are swapped so that start <= end in the sorted bed table.
 #' 
 #' @param bed_table data frame with at least three required columns: chr, start, end
+#' @param decreasingChr if TRUE, sort so that the chromosomes are listed in reverse order
+#' @param decreasingPos if TRUE, the bed regions in each chromosomes will be sorted from last to first 
+#' @param usePos which position to use for sorting, either start or end (default start) 
 #' @return data frame of ordered bed regions
 #' @export
-sortBed <- function(bed_table){
+sortBed <- function(bed_table,
+                    decreasingChr=FALSE,
+                    decreasingPos=FALSE,
+                    usePos="start"){
   if(!all(c("chr","start","end") %in% colnames(bed_table))){
     misscol <- setdiff(c("chr","start","end"),colnames(bed_table))
     message("[error sortBed] missing columns: ",paste(misscol,collapse = ", "))
+    return(NULL)
+  }
+  if(!usePos %in% c("start","end")){
+    message("[error sortBed] usePos parameter needs to be either start or end. User parameter was: ",usePos)
     return(NULL)
   }
   if(nrow(bed_table)==0){
@@ -97,7 +107,8 @@ sortBed <- function(bed_table){
   }
   bed_table$chr <- as.character(bed_table$chr)
   sortedBed <- NULL
-  chroms <- sortChroms(unique(bed_table$chr))
+  chroms <- sortChroms(chroms = unique(bed_table$chr),
+                       decreasing = decreasingChr)
   for (chrom in chroms){
     # chrom <- chroms[1]
     tmpTable <- bed_table[bed_table$chr==chrom,,drop=F]
@@ -109,8 +120,9 @@ sortBed <- function(bed_table){
       selstarts <- tmpTable$start[selinvert]
       tmpTable$start[selinvert] <- tmpTable$end[selinvert]
       tmpTable$end[selinvert] <- selstarts
-    } 
-    tmpTable <- tmpTable[order(tmpTable$start),,drop=F]
+    }
+    neworder <- order(tmpTable[,usePos,drop=T],decreasing = decreasingPos)
+    tmpTable <- tmpTable[neworder,,drop=F]
     sortedBed <- dplyr::bind_rows(sortedBed,tmpTable)
   }
   return(sortedBed)
@@ -1769,6 +1781,10 @@ bedpeBreakpointsToPositions <- function(sv_bedpe,
     message("[error bedpeBreakpointsToPositions] missing required columns: ",paste(missingcolumns,collapse = ", "))
     return(NULL)
   }
+  
+  # convert chr to char just in case
+  sv_bedpe$chrom1 <- as.character(sv_bedpe$chrom1)
+  sv_bedpe$chrom2 <- as.character(sv_bedpe$chrom2)
   
   if(!is.null(copycolumns)){
     # check that copycolumns are indeed columns of sv_bedpe

@@ -40,6 +40,24 @@ test_that("test sortBed", {
   
 })
 
+test_that("test sortBed reversed", {
+  
+  bed_table <- data.frame(chr=c("2","2","1","1"),start=c(3,2,2,1),end=c(1,4,3,5))
+  expect_sorted <- bed_table[c(4,3,2,1),]
+  expect_sorted[4,c("start","end")] <- c(1,3)
+  
+  bed_table_sorted <- sortBed(bed_table,
+                              decreasingChr = F,
+                              decreasingPos = T,
+                              usePos = "end")
+  
+  rownames(bed_table_sorted) <- 1:nrow(bed_table_sorted)
+  rownames(expect_sorted) <- 1:nrow(expect_sorted)
+  
+  expect_equal(bed_table_sorted,expect_sorted)
+  
+})
+
 test_that("test checkBedRegionsOverlap", {
   
   bed_table1 <- data.frame(chr=c("2","2","1","1"),start=c(3,2,2,1),end=c(1,4,3,2))

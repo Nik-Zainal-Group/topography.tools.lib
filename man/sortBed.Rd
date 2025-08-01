@@ -4,10 +4,21 @@
 \alias{sortBed}
 \title{Sort bed}
 \usage{
-sortBed(bed_table)
+sortBed(
+  bed_table,
+  decreasingChr = FALSE,
+  decreasingPos = FALSE,
+  usePos = "start"
+)
 }
 \arguments{
 \item{bed_table}{data frame with at least three required columns: chr, start, end}
+
+\item{decreasingChr}{if TRUE, sort so that the chromosomes are listed in reverse order}
+
+\item{decreasingPos}{if TRUE, the bed regions in each chromosomes will be sorted from last to first}
+
+\item{usePos}{which position to use for sorting, either start or end (default start)}
 }
 \value{
 data frame of ordered bed regions
