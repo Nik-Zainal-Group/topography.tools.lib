@@ -1198,12 +1198,14 @@ plotBedSignalRegion <- function(bed_table=NULL,
        xaxs="i",
        yaxs="i",
        yaxt="n",
+       cex.lab=cexlabels,
+       cex.axis=cexlabels,
        xlab=paste0("chromosome ",xlab," (Mb)"))
   # ylabel
   xylabelpos <- (pstart - 0.1*(pend-pstart))/1e6
   text(x = xylabelpos,
        y = (ylimData[1]+ylimData[2])/2,
-       labels=ylabel,srt=90,adj=0.5,xpd=T,col=signalColour)
+       labels=ylabel,srt=90,adj=0.5,xpd=T,col=signalColour,cex=cexlabels)
   lines(x=c(pstart,pend)/1e6,y=c(ylimData[1],ylimData[1]),col="black",xpd=T)
   lines(x=c(pstart,pstart)/1e6,y=c(ylimData[1],ylimData[2]),col="black",xpd=T)
   # ok figure out the axis from 0 to something just below ylimData[2]
@@ -1253,7 +1255,8 @@ plotBedSignalRegion <- function(bed_table=NULL,
          las=2,
          col=signalColour,
          col.ticks=signalColour,
-         col.axis=signalColour)
+         col.axis=signalColour,
+         cex.axis=cexlabels)
   }
   if(!is.null(res_bd)){
     if(nrow(res_bd)>0){
@@ -1395,7 +1398,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
             text(x=(regionPositions[j,"position"]-2*xtextgap)/1e6,
                  y=sum(ylimData)/2,labels=regionPositions[j,"text"],
                  col=highlightPositionsColours[[n]],
-                 srt=90,adj=0.5)
+                 srt=90,adj=0.5,cex=cexlabels)
           }
         }
       }
@@ -1440,7 +1443,7 @@ plotBedSignalRegion <- function(bed_table=NULL,
     xylabelpos <- (pend + 0.1*(pend-pstart))/1e6
     text(x = xylabelpos,
          y = (ylimData[1]+ylimData[2])/2,
-         labels=ylabel2,srt=90,adj=0.5,xpd=T,col=signalColour2)
+         labels=ylabel2,srt=90,adj=0.5,xpd=T,col=signalColour2,cex=cexlabels)
     lines(x=c(pend,pend)/1e6,y=c(ylimData[1],ylimData[2]),col="black",xpd=T)
     # ok figure out the axis from 0 to something just below ylimData[2]
     yaxisgaps <- c(1,2,5)
@@ -1489,7 +1492,8 @@ plotBedSignalRegion <- function(bed_table=NULL,
            las=2,
            col=signalColour2,
            col.ticks=signalColour2,
-           col.axis=signalColour2)
+           col.axis=signalColour2,
+           cex.axis=cexlabels)
     }
     if(nrow(res_bd2)>0){
       # if there is at least one segment to draw, draw a line
@@ -1548,7 +1552,8 @@ plotBedSignalRegion <- function(bed_table=NULL,
            fill = legendColours,
            xpd=T,
            border = NA,
-           bty = "n")
+           bty = "n",
+           cex=cexlabels)
   }
   if(!is.null(fileout)) dev.off()
   
